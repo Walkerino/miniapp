@@ -19,8 +19,13 @@ func Run(logger *logger.Log, cfg *config.Config) {
 	mux.HandleFunc("/register", container.Handler.RegisterHandler)
 	mux.HandleFunc("/login", container.Handler.LoginHandler)
 	mux.HandleFunc("/refresh", container.Handler.RefreshHandler)
+	mux.HandleFunc("/logout", container.Handler.LogoutHandler)
+	mux.HandleFunc("/me", container.Handler.MeHandler)
 	mux.HandleFunc("/validate", container.Handler.ValidateHandler)
 	mux.HandleFunc("/health", container.Handler.HealthHandler)
+	mux.HandleFunc("/admin/users", container.Handler.AdminUsersHandler)
+	mux.HandleFunc("/admin/users/promote", container.Handler.PromoteUserHandler)
+	mux.HandleFunc("/admin/users/", container.Handler.UserActivationHandler)
 
 	publicPaths := map[string]struct{}{
 		"/register": {},

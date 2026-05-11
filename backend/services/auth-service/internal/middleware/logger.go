@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -75,13 +76,13 @@ func Auth(jwtService *utils.JWTService, publicPaths map[string]struct{}) func(ht
 			authHeader := r.Header.Get("Authorization")
 			tokenString, ok := strings.CutPrefix(authHeader, "Bearer ")
 			if !ok || strings.TrimSpace(tokenString) == "" {
-				http.Error(w, "missing bearer token", http.StatusUnauthorized)
+				writeError(w, http.StatusUnauthorized, "unauthorized", "Missing bearer token")
 				return
 			}
 
 			claims, err := jwtService.Validate(strings.TrimSpace(tokenString))
 			if err != nil {
-				http.Error(w, "invalid bearer token", http.StatusUnauthorized)
+				writeError(w, http.StatusUnauthorized, "unauthorized", "Invalid bearer token")
 				return
 			}
 
@@ -91,4 +92,13 @@ func Auth(jwtService *utils.JWTService, publicPaths map[string]struct{}) func(ht
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func writeError(w http.ResponseWriter, status int, code, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error":   code,
+		"message": message,
+	})
 }

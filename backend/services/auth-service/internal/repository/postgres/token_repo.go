@@ -23,36 +23,46 @@ func NewRefreshTokenRepository(tokendbURL string) (*RefreshTokenRepository, erro
 	return &RefreshTokenRepository{db: db}, nil
 }
 
-func (r *RefreshTokenRepository) Create(token *models.RefreshToken) error {
-	_, err := r.db.Exec(`INSERT INTO refresh_tokens (id, token, expires_at, is_revoked, user_id, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`,
-		token.ID, token.Token, token.ExpiresAt, token.IsRevoked, token.UserID, token.CreatedAt,
+func (r *RefreshTokenRepository) Create(session *models.RefreshSession) error {
+	_, err := r.db.Exec(`INSERT INTO refresh_sessions
+		(id, user_id, refresh_token_hash, user_agent, ip_address, expires_at, revoked_at, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		session.ID,
+		session.UserID,
+		session.RefreshTokenHash,
+		session.UserAgent,
+		session.IPAddress,
+		session.ExpiresAt,
+		session.RevokedAt,
+		session.CreatedAt,
 	)
 	return err
 }
 
-func (r *RefreshTokenRepository) GetByToken(token string) (*models.RefreshToken, error) {
-	refreshToken := &models.RefreshToken{}
+func (r *RefreshTokenRepository) GetByHash(tokenHash string) (*models.RefreshSession, error) {
+	session := &models.RefreshSession{}
 
-	err := r.db.QueryRow(`SELECT id, token, expires_at, is_revoked, user_id, created_at
-		FROM refresh_tokens WHERE token=$1`, token,
+	err := r.db.QueryRow(`SELECT id, user_id, refresh_token_hash, user_agent, ip_address, expires_at, revoked_at, created_at
+		FROM refresh_sessions WHERE refresh_token_hash=$1`, tokenHash,
 	).Scan(
-		&refreshToken.ID,
-		&refreshToken.Token,
-		&refreshToken.ExpiresAt,
-		&refreshToken.IsRevoked,
-		&refreshToken.UserID,
-		&refreshToken.CreatedAt,
+		&session.ID,
+		&session.UserID,
+		&session.RefreshTokenHash,
+		&session.UserAgent,
+		&session.IPAddress,
+		&session.ExpiresAt,
+		&session.RevokedAt,
+		&session.CreatedAt,
 	)
 	if err != nil {
 		return nil, ErrRefreshTokenNotFound
 	}
 
-	return refreshToken, nil
+	return session, nil
 }
 
-func (r *RefreshTokenRepository) Revoke(token string) error {
-	result, err := r.db.Exec("UPDATE refresh_tokens SET is_revoked=TRUE WHERE token=$1", token)
+func (r *RefreshTokenRepository) RevokeByHash(tokenHash string) error {
+	result, err := r.db.Exec("UPDATE refresh_sessions SET revoked_at=now() WHERE refresh_token_hash=$1 AND revoked_at IS NULL", tokenHash)
 	if err != nil {
 		return err
 	}

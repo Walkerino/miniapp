@@ -1,29 +1,24 @@
 package handlers
 
-import (
-	"encoding/json"
-	"net/http"
-)
+import "net/http"
 
 func (h *Handler) ValidateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
 		return
 	}
 
 	token, err := bearerToken(r)
 	if err != nil {
-		http.Error(w, "missing bearer token", http.StatusUnauthorized)
+		writeError(w, http.StatusUnauthorized, "unauthorized", "Missing bearer token")
 		return
 	}
 
 	claims, err := h.service.ValidateAccessToken(token)
 	if err != nil {
-		http.Error(w, "invalid bearer token", http.StatusUnauthorized)
+		writeError(w, http.StatusUnauthorized, "unauthorized", "Invalid bearer token")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(claims)
+	writeJSON(w, http.StatusOK, claims)
 }

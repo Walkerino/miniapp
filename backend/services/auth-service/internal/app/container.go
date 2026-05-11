@@ -11,11 +11,12 @@ import (
 )
 
 type Container struct {
-	Logger     *logger.Log
-	Handler    *handlers.Handler
-	JWTService *utils.JWTService
-	usersRepo  *postgres.UserRepository
-	tokensRepo *postgres.RefreshTokenRepository
+	Logger      *logger.Log
+	Handler     *handlers.Handler
+	JWTService  *utils.JWTService
+	usersRepo   *postgres.UserRepository
+	tokensRepo  *postgres.RefreshTokenRepository
+	actionsRepo *postgres.AdminActionRepository
 }
 
 func NewContainer(logger *logger.Log, cfg *config.Config) *Container {
@@ -29,17 +30,23 @@ func NewContainer(logger *logger.Log, cfg *config.Config) *Container {
 		logger.Logger.Error("failed to initialize refresh token repository", "error", err)
 		os.Exit(1)
 	}
+	actionsRepo, err := postgres.NewAdminActionRepository(cfg.DB.UserURL)
+	if err != nil {
+		logger.Logger.Error("failed to initialize admin action repository", "error", err)
+		os.Exit(1)
+	}
 
 	hasher := utils.NewBcryptHasher(cfg.Bcrypt.Cost)
 	jwtService := utils.NewJWTService(cfg.JWT.Secret, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL)
-	svc := service.NewService(hasher, jwtService, tokensRepo, usersRepo)
+	svc := service.NewService(hasher, jwtService, tokensRepo, usersRepo, actionsRepo)
 	handler := handlers.NewHandler(logger, svc)
 
 	return &Container{
-		Logger:     logger,
-		Handler:    handler,
-		JWTService: jwtService,
-		usersRepo:  usersRepo,
-		tokensRepo: tokensRepo,
+		Logger:      logger,
+		Handler:     handler,
+		JWTService:  jwtService,
+		usersRepo:   usersRepo,
+		tokensRepo:  tokensRepo,
+		actionsRepo: actionsRepo,
 	}
 }
