@@ -1,1 +1,8 @@
-export type { AuthResponse, LoginData, RefreshTokenData, SignUpData } from 'api';
+export type {
+  AuthResponse,
+  LoginData,
+  LogoutData,
+  RefreshTokenData,
+  RegisterData,
+  SignUpData,
+} from 'api';

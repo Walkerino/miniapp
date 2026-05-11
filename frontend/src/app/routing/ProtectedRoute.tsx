@@ -10,7 +10,7 @@ type ProtectedRouteProps = {
   children: ReactNode;
 };
 
-export const ProtectedRoute = observer(function ProtectedRoute({ children }: ProtectedRouteProps) {
+function useAuthCheck() {
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
@@ -27,12 +27,32 @@ export const ProtectedRoute = observer(function ProtectedRoute({ children }: Pro
     };
   }, []);
 
+  return isChecking;
+}
+
+export const ProtectedRoute = observer(function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const isChecking = useAuthCheck();
+
   if (isChecking) {
     return null;
   }
 
   if (!sessionStore.isAuth) {
     return <Navigate to={routesMasks.login.create()} replace />;
+  }
+
+  return <>{children}</>;
+});
+
+export const GuestRoute = observer(function GuestRoute({ children }: ProtectedRouteProps) {
+  const isChecking = useAuthCheck();
+
+  if (isChecking) {
+    return null;
+  }
+
+  if (sessionStore.isAuth) {
+    return <Navigate to={routesMasks.main.create()} replace />;
   }
 
   return <>{children}</>;

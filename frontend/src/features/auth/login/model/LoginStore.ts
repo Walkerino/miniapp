@@ -1,6 +1,6 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 
-import { authApi, saveAuthTokens } from 'api';
+import { authApi } from 'api';
 import { sessionStore } from 'entities/session';
 import type { ILocalStore } from 'shared/lib/useLocalStore';
 
@@ -43,13 +43,13 @@ export class LoginStore implements ILocalStore {
     this._errors = {};
 
     if (!this._email) {
-      this._errors.email = 'Email обязателен';
+      this._errors.email = 'Email is required';
     } else if (!/^\S+@\S+\.\S+$/.test(this._email)) {
-      this._errors.email = 'Некорректный email';
+      this._errors.email = 'Invalid email';
     }
 
     if (!this._password) {
-      this._errors.password = 'Пароль обязателен';
+      this._errors.password = 'Password is required';
     }
 
     return Object.keys(this._errors).length === 0;
@@ -71,36 +71,36 @@ export class LoginStore implements ILocalStore {
 
     if (result.isError && !result.status) {
       runInAction(() => {
-        this._errors.form = 'Соединение не установлено';
+        this._errors.form = 'Connection failed';
       });
       return false;
     }
 
     if (result.isError && result.status === 401) {
       runInAction(() => {
-        this._errors.form = 'Неверный email или пароль';
+        this._errors.form = 'Invalid email or password';
       });
       return false;
     }
 
     if (result.isError) {
       runInAction(() => {
-        this._errors.form = 'Не удалось войти';
+        this._errors.form = 'Could not sign in';
       });
       return false;
     }
 
     if (!result.data) {
       runInAction(() => {
-        this._errors.form = 'Не удалось войти';
+        this._errors.form = 'Could not sign in';
       });
       return false;
     }
 
-    saveAuthTokens(result.data);
+    const authResponse = result.data;
 
     runInAction(() => {
-      sessionStore.setAuth();
+      sessionStore.setSession(authResponse);
       this._success = true;
     });
 
