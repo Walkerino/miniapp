@@ -99,6 +99,20 @@ services:
       - "8086:8080"
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: miniapp-frontend
+    depends_on:
+      api-service:
+        condition: service_started
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
   swagger-ui:
     image: swaggerapi/swagger-ui:latest
     container_name: miniapp-swagger-ui

@@ -1,7 +1,7 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 
 
-import { authApi, clearAuthTokens, getAccessToken, getRefreshToken, saveAuthTokens } from 'api';
+import { authApi, clearAuthTokens, getAccessToken, saveAuthTokens } from 'api';
 import type { AuthResponse } from 'api';
 import type { AuthUser } from 'entities/user';
 
@@ -25,10 +25,20 @@ export class SessionStore {
       return true;
     }
 
-<<<<<<< HEAD
     if (this._checkAuthPromise) {
       return this._checkAuthPromise;
-=======
+    }
+
+    this._checkAuthPromise = this.restoreSession();
+
+    try {
+      return await this._checkAuthPromise;
+    } finally {
+      this._checkAuthPromise = null;
+    }
+  }
+
+  private async restoreSession() {
     if (getAccessToken()) {
       const meResponse = await authApi.me();
 
@@ -43,21 +53,7 @@ export class SessionStore {
       }
     }
 
-    const refreshToken = getRefreshToken();
-
-    if (!refreshToken) {
-      this.clearSession();
-      return false;
->>>>>>> d99745a (feat: backend + frontend connection)
-    }
-
-    this._checkAuthPromise = this.refreshSession();
-
-    try {
-      return await this._checkAuthPromise;
-    } finally {
-      this._checkAuthPromise = null;
-    }
+    return this.refreshSession();
   }
 
   private async refreshSession() {
