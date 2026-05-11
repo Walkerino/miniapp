@@ -1,6 +1,8 @@
 import type { ApiAnswer } from 'api';
 import type {
   AuthUser,
+  FavoriteResponse,
+  LaunchMiniappResponse,
   Miniapp,
   MiniappFormData,
   MiniappListParams,
@@ -238,6 +240,86 @@ export const mockMiniappApi = {
       isError: false,
       status: 200,
       data: updatedItem,
+    };
+  },
+
+  async deleteMiniapp(id: string): Promise<ApiAnswer<void>> {
+    const itemIndex = mockItems.findIndex((miniapp) => miniapp.id === id);
+
+    if (itemIndex === -1) {
+      return {
+        isError: true,
+        status: 404,
+      };
+    }
+
+    mockItems.splice(itemIndex, 1);
+
+    return {
+      isError: false,
+      status: 204,
+    };
+  },
+
+  async addFavorite(id: string): Promise<ApiAnswer<FavoriteResponse>> {
+    const item = mockItems.find((miniapp) => miniapp.id === id);
+
+    if (!item) {
+      return {
+        isError: true,
+        status: 404,
+      };
+    }
+
+    item.is_favorite = true;
+
+    return {
+      isError: false,
+      status: 201,
+      data: {
+        user_id: mockUserId,
+        miniapp_id: id,
+        created_at: now,
+      },
+    };
+  },
+
+  async removeFavorite(id: string): Promise<ApiAnswer<void>> {
+    const item = mockItems.find((miniapp) => miniapp.id === id);
+
+    if (!item) {
+      return {
+        isError: true,
+        status: 404,
+      };
+    }
+
+    item.is_favorite = false;
+
+    return {
+      isError: false,
+      status: 204,
+    };
+  },
+
+  async launchMiniapp(id: string): Promise<ApiAnswer<LaunchMiniappResponse>> {
+    const item = mockItems.find((miniapp) => miniapp.id === id);
+
+    if (!item) {
+      return {
+        isError: true,
+        status: 404,
+      };
+    }
+
+    return {
+      isError: false,
+      status: 200,
+      data: {
+        launch_url: item.url,
+        launch_token: 'mock-launch-token',
+        expires_at: now,
+      },
     };
   },
 };

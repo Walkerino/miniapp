@@ -162,3 +162,38 @@ export async function customPatch<TBody, TResponse>(
     };
   }
 }
+
+export async function customDelete<TResponse = void>(path: string): Promise<ApiAnswer<TResponse>> {
+  try {
+    const authorizationHeaders = getAuthorizationHeaders(path);
+    const response = await fetch(getApiUrl(path), {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: authorizationHeaders,
+    });
+
+    const status = response.status;
+
+    if (!response.ok) {
+      return {
+        isError: true,
+        status,
+      };
+    }
+
+    const responseData = await parseResponseData<TResponse>(response);
+
+    return {
+      isError: false,
+      status,
+      data: responseData,
+    };
+  } catch (err) {
+    const error = err as Error;
+
+    return {
+      isError: true,
+      errorMessage: error.message,
+    };
+  }
+}

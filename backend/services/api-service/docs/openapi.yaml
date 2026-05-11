@@ -184,8 +184,8 @@ paths:
     get:
       tags:
         - User Miniapps
-      summary: Get published miniapps
-      description: Для user возвращает только active miniapps.
+      summary: Get miniapps
+      description: Для user возвращает miniapps во всех статусах кроме deleted.
       parameters:
         - $ref: "#/components/parameters/PageParam"
         - $ref: "#/components/parameters/LimitParam"
@@ -197,7 +197,7 @@ paths:
           description: Поиск по title/description.
       responses:
         "200":
-          description: List of active miniapps
+          description: List of miniapps
           content:
             application/json:
               schema:

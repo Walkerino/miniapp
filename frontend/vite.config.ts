@@ -8,6 +8,14 @@ import { resolve } from 'node:path'
 const root = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8086',
+        changeOrigin: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       api: resolve(root, 'src/api'),
