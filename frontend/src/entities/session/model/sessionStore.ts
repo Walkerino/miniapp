@@ -53,7 +53,24 @@ export class SessionStore {
       }
     }
 
+<<<<<<< HEAD
     return this.refreshSession();
+=======
+    const refreshToken = getRefreshToken();
+
+    if (!refreshToken) {
+      this.clearSession();
+      return false;
+    }
+
+    this._checkAuthPromise = this.refreshSession();
+
+    try {
+      return await this._checkAuthPromise;
+    } finally {
+      this._checkAuthPromise = null;
+    }
+>>>>>>> ff6e2e8 (fix: bugs)
   }
 
   private async refreshSession() {
