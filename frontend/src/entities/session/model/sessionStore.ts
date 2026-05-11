@@ -1,53 +1,64 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 
 import { authApi, clearAuthTokens, getRefreshToken, saveAuthTokens } from 'api';
-import type { UserData } from 'entities/user';
+import type { AuthResponse } from 'api';
+import type { AuthUser } from 'entities/user';
 
 export class SessionStore {
   private _isAuth = false;
-  private _userData: UserData | null = null;
+  private _user: AuthUser | null = null;
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
   }
 
-  setAuth(userData: UserData | null = null) {
+  setSession(authResponse: AuthResponse) {
+    saveAuthTokens(authResponse);
     this._isAuth = true;
-    this._userData = userData;
+    this._user = authResponse.user;
   }
 
   async checkAuth() {
+    if (this._isAuth && this._user) {
+      return true;
+    }
+
     const refreshToken = getRefreshToken();
 
     if (!refreshToken) {
-      runInAction(() => {
-        this._isAuth = false;
-        this._userData = null;
-      });
-      return;
+      this.clearSession();
+      return false;
     }
 
     const response = await authApi.refresh({ refresh_token: refreshToken });
 
     if (response.isError || !response.data) {
-      clearAuthTokens();
-      runInAction(() => {
-        this._isAuth = false;
-        this._userData = null;
-      });
-      return;
+      this.clearSession();
+      return false;
     }
 
-    saveAuthTokens(response.data);
+    const authResponse = response.data;
 
     runInAction(() => {
-      this.setAuth();
+      this.setSession(authResponse);
     });
+
+    return true;
   }
 
-  logout() {
+  async logout() {
+    const refreshToken = getRefreshToken();
+
+    this.clearSession();
+
+    if (refreshToken) {
+      await authApi.logout({ refresh_token: refreshToken });
+    }
+  }
+
+  clearSession() {
     clearAuthTokens();
-    this._userData = null;
+    this._user = null;
     this._isAuth = false;
   }
 
@@ -55,22 +66,28 @@ export class SessionStore {
     return this._isAuth;
   }
 
+  get user() {
+    return this._user;
+  }
+
   get userData() {
-    return this._userData;
+    return this._user;
+  }
+
+  get role() {
+    return this._user?.role ?? null;
+  }
+
+  get userName() {
+    return this._user?.name || this._user?.email || 'User';
   }
 
   get fullName() {
-    if (!this._userData) {
-      return '';
-    }
-
-    return `${this._userData.lastName} ${this._userData.firstName} ${this._userData.middleName}`.trim();
+    return this.userName;
   }
 
   destroy() {
-    clearAuthTokens();
-    this._isAuth = false;
-    this._userData = null;
+    this.clearSession();
   }
 }
 

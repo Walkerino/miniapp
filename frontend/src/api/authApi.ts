@@ -1,8 +1,11 @@
-import { customPost } from './customRequests';
+import type { AuthUser } from 'entities/user';
 
-export type SignUpData = {
+import { customGet, customPost } from './customRequests';
+
+export type RegisterData = {
   email: string;
   password: string;
+  name: string;
 };
 
 export type LoginData = {
@@ -13,23 +16,38 @@ export type LoginData = {
 export type AuthResponse = {
   access_token: string;
   refresh_token: string;
-  expires_at: string;
+  user: AuthUser;
 };
 
 export type RefreshTokenData = {
   refresh_token: string;
 };
 
+export type LogoutData = RefreshTokenData;
+
+function register(data: RegisterData) {
+  return customPost<RegisterData, AuthResponse>('/api/auth/register', data);
+}
+
 export const authApi = {
-  signUp(data: SignUpData) {
-    return customPost<SignUpData, AuthResponse>('/register', data);
-  },
+  register,
+  signUp: register,
 
   login(data: LoginData) {
-    return customPost<LoginData, AuthResponse>('/login', data);
+    return customPost<LoginData, AuthResponse>('/api/auth/login', data);
   },
 
   refresh(data: RefreshTokenData) {
-    return customPost<RefreshTokenData, AuthResponse>('/refresh', data);
+    return customPost<RefreshTokenData, AuthResponse>('/api/auth/refresh', data);
+  },
+
+  logout(data: LogoutData) {
+    return customPost<LogoutData, void>('/api/auth/logout', data);
+  },
+
+  me() {
+    return customGet<AuthUser>('/api/auth/me');
   },
 };
+
+export type SignUpData = RegisterData;

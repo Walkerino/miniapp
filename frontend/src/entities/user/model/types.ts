@@ -1,13 +1,13 @@
-export type UserData = {
-  id: number;
-  firstName: string;
-  lastName: string;
-  middleName: string;
+export type UserRole = 'user' | 'admin';
+
+export type AuthUser = {
+  id: string;
   email: string;
-  phone: string;
-  birthDate: string;
-  username: string;
-  role: string;
-  rating: number;
-  photoBase64: string;
+  name: string | null;
+  role: UserRole;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };
+
+export type UserData = AuthUser;

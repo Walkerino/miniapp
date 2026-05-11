@@ -8,7 +8,32 @@ export type ApiAnswer<T> = {
   errorMessage?: string;
 };
 
-const AUTHLESS_PATHS = new Set(['/login', '/register', '/refresh']);
+const AUTHLESS_PATHS = new Set([
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/refresh',
+  '/api/auth/logout',
+]);
+
+function getApiUrl(path: string) {
+  const baseUrl = BASE_URL.replace(/\/$/, '');
+
+  if (baseUrl.endsWith('/api') && path.startsWith('/api/')) {
+    return `${baseUrl}${path.slice('/api'.length)}`;
+  }
+
+  return `${baseUrl}${path}`;
+}
+
+async function parseResponseData<T>(response: Response) {
+  const responseText = await response.text();
+
+  if (!responseText) {
+    return undefined as T;
+  }
+
+  return JSON.parse(responseText) as T;
+}
 
 function getAuthorizationHeaders(path: string) {
   if (AUTHLESS_PATHS.has(path)) {
@@ -23,7 +48,7 @@ function getAuthorizationHeaders(path: string) {
 export async function customGet<T>(path: string): Promise<ApiAnswer<T>> {
   try {
     const authorizationHeaders = getAuthorizationHeaders(path);
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(getApiUrl(path), {
       credentials: 'include',
       headers: authorizationHeaders,
     });
@@ -37,7 +62,7 @@ export async function customGet<T>(path: string): Promise<ApiAnswer<T>> {
       };
     }
 
-    const data = (await response.json()) as T;
+    const data = await parseResponseData<T>(response);
 
     return {
       isError: false,
@@ -60,7 +85,7 @@ export async function customPost<TBody, TResponse>(
 ): Promise<ApiAnswer<TResponse>> {
   try {
     const authorizationHeaders = getAuthorizationHeaders(path);
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(getApiUrl(path), {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -79,7 +104,7 @@ export async function customPost<TBody, TResponse>(
       };
     }
 
-    const responseData = (await response.json()) as TResponse;
+    const responseData = await parseResponseData<TResponse>(response);
 
     return {
       isError: false,
@@ -102,7 +127,7 @@ export async function customPatch<TBody, TResponse>(
 ): Promise<ApiAnswer<TResponse>> {
   try {
     const authorizationHeaders = getAuthorizationHeaders(path);
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(getApiUrl(path), {
       method: 'PATCH',
       credentials: 'include',
       headers: {
@@ -121,7 +146,7 @@ export async function customPatch<TBody, TResponse>(
       };
     }
 
-    const responseData = (await response.json()) as TResponse;
+    const responseData = await parseResponseData<TResponse>(response);
 
     return {
       isError: false,

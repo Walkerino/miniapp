@@ -1,4 +1,5 @@
 import { useState, type CSSProperties, type Dispatch, type FormEvent, type SetStateAction } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -65,6 +66,7 @@ import {
   TableRow,
 } from 'components/ui/table';
 import { sessionStore } from 'entities/session';
+import { routesMasks } from 'shared/config/routesMasks';
 import { cn } from 'shared/lib/utils';
 
 const sidebarItems = [
@@ -134,9 +136,10 @@ const initialRows = projectRows.filter((row) => row.status !== 'deleted') as Vis
 
 type AppSidebarProps = {
   userName: string;
+  onLogout: () => void;
 };
 
-function AppSidebar({ userName }: AppSidebarProps) {
+function AppSidebar({ userName, onLogout }: AppSidebarProps) {
   const userInitials = userName
     .split(' ')
     .filter(Boolean)
@@ -192,7 +195,7 @@ function AppSidebar({ userName }: AppSidebarProps) {
               className="text-red-600 hover:bg-red-50 hover:text-red-700 data-[active=true]:bg-red-50 data-[active=true]:text-red-700"
               tooltip="Logout"
             >
-              <button type="button">
+              <button type="button" onClick={onLogout}>
                 <LogOut />
                 <span>Logout</span>
               </button>
@@ -735,14 +738,20 @@ function DashboardContent({ userName }: DashboardContentProps) {
 }
 
 export function HomePage() {
-  const userName = sessionStore.fullName || sessionStore.userData?.username || 'USER_NAME';
+  const navigate = useNavigate();
+  const userName = sessionStore.userName;
+
+  const handleLogout = async () => {
+    await sessionStore.logout();
+    navigate(routesMasks.login.create(), { replace: true });
+  };
 
   return (
     <SidebarProvider
       className="dashboard-page"
       style={{ '--sidebar-width': '238px' } as CSSProperties}
     >
-      <AppSidebar userName={userName} />
+      <AppSidebar userName={userName} onLogout={handleLogout} />
       <SidebarInset className="dashboard-inset">
         <DashboardContent userName={userName} />
       </SidebarInset>

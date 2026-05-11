@@ -10,5 +10,12 @@ export {
   saveAuthTokens,
 } from './tokenStorage';
 export type { ApiAnswer } from './customRequests';
-export type { SignUpData, LoginData, AuthResponse, RefreshTokenData } from './authApi';
+export type {
+  AuthResponse,
+  LoginData,
+  LogoutData,
+  RefreshTokenData,
+  RegisterData,
+  SignUpData,
+} from './authApi';
 export type { AuthTokens } from './tokenStorage';
