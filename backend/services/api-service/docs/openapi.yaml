@@ -1,0 +1,1081 @@
+openapi: 3.0.3
+
+info:
+  title: Miniapp Platform API
+  version: 1.0.0
+  description: |
+    API Gateway для платформы miniapps/webview.
+
+    Основная логика:
+    - Пользователь регистрируется только как user.
+    - Admin может быть создан вручную в БД или назначен другим admin.
+    - User видит опубликованные miniapps и может предлагать новые miniapps.
+    - Admin управляет miniapps: publish, edit, disable, enable, delete.
+    - Запуск miniapp происходит через launch_token, который связывает user + miniapp.
+    - Access JWT не передается внешнему miniapp.
+
+servers:
+  - url: http://localhost:8080
+    description: Local api-service
+
+tags:
+  - name: Health
+    description: Проверка состояния сервиса
+  - name: Auth
+    description: Регистрация, логин, refresh, logout
+  - name: User Miniapps
+    description: Действия обычного пользователя с miniapps
+  - name: Admin Miniapps
+    description: Админское управление miniapps
+  - name: Admin Users
+    description: Управление пользователями и ролями
+  - name: Miniapp Sessions
+    description: Получение контекста запуска miniapp по launch token
+  - name: Favorites
+    description: Избранные miniapps пользователя
+
+security:
+  - BearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check api-service
+      security: []
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register new user
+      description: Регистрирует нового пользователя. Роль всегда user.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Tokens refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout user
+      description: Отзывает refresh session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "204":
+          description: Logout successful
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/miniapps:
+    get:
+      tags:
+        - User Miniapps
+      summary: Get published miniapps
+      description: Для user возвращает только active miniapps.
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Поиск по title/description.
+      responses:
+        "200":
+          description: List of active miniapps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MiniappListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags:
+        - User Miniapps
+      summary: Suggest new miniapp
+      description: User предлагает miniapp. Он создается со статусом pending.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMiniappRequest"
+      responses:
+        "201":
+          description: Miniapp suggestion created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Miniapp"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/miniapps/{miniapp_id}:
+    get:
+      tags:
+        - User Miniapps
+      summary: Get miniapp by id
+      description: User может получить только active miniapp.
+      parameters:
+        - $ref: "#/components/parameters/MiniappIdParam"
+      responses:
+        "200":
+          description: Miniapp details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Miniapp"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/miniapps/{miniapp_id}/launch:
+    post:
+      tags:
+        - User Miniapps
+      summary: Launch miniapp
+      description: |
+        Создает launch_token для пары user + miniapp.
+        Если miniapp disabled/pending/deleted, запуск запрещен.
+      parameters:
+        - $ref: "#/components/parameters/MiniappIdParam"
+      responses:
+        "200":
+          description: Launch URL generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchMiniappResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/miniapps/{miniapp_id}/favorite:
+    post:
+      tags:
+        - Favorites
+      summary: Add miniapp to favorites
+      parameters:
+        - $ref: "#/components/parameters/MiniappIdParam"
+      responses:
+        "201":
+          description: Added to favorites
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags:
+        - Favorites
+      summary: Remove miniapp from favorites
+      parameters:
+        - $ref: "#/components/parameters/MiniappIdParam"
+      responses:
+        "204":
+          description: Removed from favorites
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/favorites:
+    get:
+      tags:
+        - Favorites
+      summary: Get current user's favorite miniapps
+      responses:
+        "200":
+          description: Favorite miniapps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MiniappListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/admin/miniapps:
+    get:
+      tags:
+        - Admin Miniapps
+      summary: Get all miniapps
+      description: Admin видит active, pending, disabled, deleted.
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/MiniappStatus"
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of all miniapps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MiniappListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags:
+        - Admin Miniapps
+      summary: Create miniapp as admin
+      description: Admin создает miniapp. По умолчанию можно создать сразу active.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCreateMiniappRequest"
+      responses:
+        "201":
+          description: Miniapp created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Miniapp"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/miniapps/{miniapp_id}:
+    get:
+      tags:
+        - Admin Miniapps
+      summary: Get any miniapp by id
+      parameters:
+        - $ref: "#/components/parameters/MiniappIdParam"
+      responses:
+        "200":
+          description: Miniapp details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Miniapp"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags:
+        - Admin Miniapps
+      summary: Update miniapp
+      parameters:
+        - $ref: "#/components/parameters/MiniappIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMiniappRequest"
+      responses:
+        "200":
+          description: Miniapp updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Miniapp"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags:
+        - Admin Miniapps
+      summary: Delete miniapp
+      description: Можно реализовать как soft delete через status=deleted.
+      parameters:
+        - $ref: "#/components/parameters/MiniappIdParam"
+      responses:
+        "204":
+          description: Miniapp deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/miniapps/{miniapp_id}/publish:
+    post:
+      tags:
+        - Admin Miniapps
+      summary: Publish pending miniapp
+      parameters:
+        - $ref: "#/components/parameters/MiniappIdParam"
+      responses:
+        "200":
+          description: Miniapp published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Miniapp"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/miniapps/{miniapp_id}/enable:
+    post:
+      tags:
+        - Admin Miniapps
+      summary: Enable miniapp
+      parameters:
+        - $ref: "#/components/parameters/MiniappIdParam"
+      responses:
+        "200":
+          description: Miniapp enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Miniapp"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/miniapps/{miniapp_id}/disable:
+    post:
+      tags:
+        - Admin Miniapps
+      summary: Disable miniapp
+      parameters:
+        - $ref: "#/components/parameters/MiniappIdParam"
+      responses:
+        "200":
+          description: Miniapp disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Miniapp"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/users:
+    get:
+      tags:
+        - Admin Users
+      summary: Get users
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: role
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/UserRole"
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by email/name.
+      responses:
+        "200":
+          description: Users list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/users/promote:
+    post:
+      tags:
+        - Admin Users
+      summary: Promote user to admin by email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PromoteUserRequest"
+      responses:
+        "200":
+          description: User promoted to admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/users/{user_id}/deactivate:
+    post:
+      tags:
+        - Admin Users
+      summary: Deactivate user
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+      responses:
+        "200":
+          description: User deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/users/{user_id}/activate:
+    post:
+      tags:
+        - Admin Users
+      summary: Activate user
+      parameters:
+        - $ref: "#/components/parameters/UserIdParam"
+      responses:
+        "200":
+          description: User activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/miniapp-sessions/{launch_token}:
+    get:
+      tags:
+        - Miniapp Sessions
+      summary: Get miniapp launch session context
+      description: |
+        Endpoint для внешнего miniapp.
+        По launch_token возвращает контекст пользователя и miniapp.
+        Access JWT сюда не нужен.
+      security: []
+      parameters:
+        - name: launch_token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Temporary launch token.
+      responses:
+        "200":
+          description: Miniapp session context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MiniappSessionContext"
+        "401":
+          description: Invalid or expired launch token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    MiniappIdParam:
+      name: miniapp_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    UserIdParam:
+      name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    PageParam:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: ok
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 6
+          example: password123
+        name:
+          type: string
+          example: Amir
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          example: password123
+
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          example: refresh_token_value
+
+    LogoutRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          example: refresh_token_value
+
+    AuthResponse:
+      type: object
+      required:
+        - access_token
+        - refresh_token
+        - user
+      properties:
+        access_token:
+          type: string
+          example: jwt_access_token
+        refresh_token:
+          type: string
+          example: refresh_token_value
+        user:
+          $ref: "#/components/schemas/User"
+
+    UserRole:
+      type: string
+      enum:
+        - user
+        - admin
+      example: user
+
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - role
+        - is_active
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          nullable: true
+        role:
+          $ref: "#/components/schemas/UserRole"
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserListResponse:
+      type: object
+      required:
+        - items
+        - page
+        - limit
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 100
+
+    MiniappStatus:
+      type: string
+      enum:
+        - pending
+        - active
+        - disabled
+        - deleted
+      example: active
+
+    CreateMiniappRequest:
+      type: object
+      required:
+        - title
+        - url
+      properties:
+        title:
+          type: string
+          example: Weather App
+        description:
+          type: string
+          example: Miniapp for weather forecast
+        url:
+          type: string
+          format: uri
+          example: https://example.com/weather
+
+    AdminCreateMiniappRequest:
+      type: object
+      required:
+        - title
+        - url
+        - status
+      properties:
+        title:
+          type: string
+          example: Weather App
+        description:
+          type: string
+          example: Miniapp for weather forecast
+        url:
+          type: string
+          format: uri
+          example: https://example.com/weather
+        status:
+          $ref: "#/components/schemas/MiniappStatus"
+
+    UpdateMiniappRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Updated Weather App
+        description:
+          type: string
+          example: Updated description
+        url:
+          type: string
+          format: uri
+          example: https://example.com/new-weather
+        status:
+          $ref: "#/components/schemas/MiniappStatus"
+
+    Miniapp:
+      type: object
+      required:
+        - id
+        - title
+        - url
+        - status
+        - created_by
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Weather App
+        description:
+          type: string
+          nullable: true
+          example: Miniapp for weather forecast
+        url:
+          type: string
+          format: uri
+          example: https://example.com/weather
+        status:
+          $ref: "#/components/schemas/MiniappStatus"
+        created_by:
+          type: string
+          format: uuid
+        updated_by:
+          type: string
+          format: uuid
+          nullable: true
+        launches_count:
+          type: integer
+          example: 42
+        is_favorite:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MiniappListResponse:
+      type: object
+      required:
+        - items
+        - page
+        - limit
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Miniapp"
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 100
+
+    LaunchMiniappResponse:
+      type: object
+      required:
+        - launch_url
+        - launch_token
+        - expires_at
+      properties:
+        launch_url:
+          type: string
+          format: uri
+          example: https://example.com/weather?launch_token=abc123
+        launch_token:
+          type: string
+          example: abc123
+        expires_at:
+          type: string
+          format: date-time
+
+    MiniappSessionContext:
+      type: object
+      required:
+        - user
+        - miniapp
+        - expires_at
+      properties:
+        user:
+          type: object
+          required:
+            - id
+            - email
+            - role
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+              format: email
+            name:
+              type: string
+              nullable: true
+            role:
+              $ref: "#/components/schemas/UserRole"
+        miniapp:
+          type: object
+          required:
+            - id
+            - title
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+        expires_at:
+          type: string
+          format: date-time
+
+    FavoriteResponse:
+      type: object
+      required:
+        - user_id
+        - miniapp_id
+        - created_at
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        miniapp_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+
+    PromoteUserRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: newadmin@example.com
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: bad_request
+        message:
+          type: string
+          example: Invalid request body
