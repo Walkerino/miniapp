@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example
+
+# Go
+bin/
+*.test
+coverage.out
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
