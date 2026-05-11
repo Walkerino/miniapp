@@ -11,4 +11,10 @@ export const routesMasks = {
     mask: '/signup',
     create: () => '/signup',
   },
+  miniapps: {
+    createMask: '/miniapps/new',
+    editMask: '/miniapps/:miniappId/edit',
+    create: () => '/miniapps/new',
+    edit: (miniappId: string) => `/miniapps/${miniappId}/edit`,
+  },
 };

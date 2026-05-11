@@ -95,3 +95,45 @@ export async function customPost<TBody, TResponse>(
     };
   }
 }
+
+export async function customPatch<TBody, TResponse>(
+  path: string,
+  data: TBody
+): Promise<ApiAnswer<TResponse>> {
+  try {
+    const authorizationHeaders = getAuthorizationHeaders(path);
+    const response = await fetch(`${BASE_URL}${path}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authorizationHeaders,
+      },
+      body: JSON.stringify(data),
+    });
+
+    const status = response.status;
+
+    if (!response.ok) {
+      return {
+        isError: true,
+        status,
+      };
+    }
+
+    const responseData = (await response.json()) as TResponse;
+
+    return {
+      isError: false,
+      status,
+      data: responseData,
+    };
+  } catch (err) {
+    const error = err as Error;
+
+    return {
+      isError: true,
+      errorMessage: error.message,
+    };
+  }
+}
