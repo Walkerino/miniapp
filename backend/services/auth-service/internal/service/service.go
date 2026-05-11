@@ -292,9 +292,10 @@ func (s *Service) issueTokens(user *models.User, userAgent, ipAddress string) (*
 	}
 
 	return &pkg_dto.TokenResponse{
-		AccessToken:  tokens.AccessToken,
-		RefreshToken: tokens.RefreshToken,
-		User:         userResponse(user),
+		AccessToken:      tokens.AccessToken,
+		RefreshToken:     tokens.RefreshToken,
+		RefreshExpiresAt: tokens.RefreshExpiresAt,
+		User:             userResponse(user),
 	}, nil
 }
 

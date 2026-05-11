@@ -42,6 +42,7 @@ func Run(logger *logger.Log, cfg *config.Config) {
 		"/register": {},
 		"/login":    {},
 		"/refresh":  {},
+		"/logout":   {},
 		"/validate": {},
 		"/health":   {},
 	}

@@ -38,14 +38,6 @@ func validateRegisterRequest(req pkg_dto.RegisterRequest) error {
 	return nil
 }
 
-func validateRefreshRequest(req pkg_dto.RefreshRequest) error {
-	if strings.TrimSpace(req.RefreshToken) == "" {
-		return ErrInvalidRequest
-	}
-
-	return nil
-}
-
 func bearerToken(r *http.Request) (string, error) {
 	authHeader := r.Header.Get("Authorization")
 	token, ok := strings.CutPrefix(authHeader, "Bearer ")
