@@ -1,11 +1,11 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 
 import { miniappApi } from 'entities/miniapp';
-import type { MiniappCardData, MiniappListParams } from 'entities/miniapp';
+import type { Miniapp, MiniappCardData, MiniappListParams } from 'entities/miniapp';
 import type { ILocalStore } from 'shared/lib/useLocalStore';
 
 export class MiniAppListStore implements ILocalStore {
-  private _items: MiniappCardData[] = [];
+  private _items: Miniapp[] = [];
   private _isLoading = false;
   private _error: string | null = null;
 
@@ -29,26 +29,93 @@ export class MiniAppListStore implements ILocalStore {
         return;
       }
 
-      this._items = response.data.items.map(
-        ({ id, title, description, url, status, is_favorite }) => ({
-          id,
-          title,
-          description,
-          url,
-          status,
-          is_favorite,
-        })
+      this._items = response.data.items;
+    });
+  }
+
+  async toggleFavorite(id: string) {
+    const item = this._items.find((currentItem) => currentItem.id === id);
+
+    if (!item) {
+      return;
+    }
+
+    const response = item.is_favorite
+      ? await miniappApi.removeFavorite(id)
+      : await miniappApi.addFavorite(id);
+
+    runInAction(() => {
+      if (response.isError) {
+        this._error = response.errorMessage ?? 'Failed to update favorite';
+        return;
+      }
+
+      this._items = this._items.map((currentItem) =>
+        currentItem.id === id ? { ...currentItem, is_favorite: !currentItem.is_favorite } : currentItem
       );
     });
   }
 
-  toggleFavorite(id: string) {
-    this._items = this._items.map((item) =>
-      item.id === id ? { ...item, is_favorite: !item.is_favorite } : item
-    );
+  async renameMiniapp(id: string, title: string, description: string) {
+    const item = this._items.find((currentItem) => currentItem.id === id);
+
+    if (!item) {
+      return;
+    }
+
+    const response = await miniappApi.updateMiniapp(id, {
+      title,
+      description,
+      url: item.url,
+      status: item.status,
+    });
+
+    runInAction(() => {
+      if (response.isError || !response.data) {
+        this._error = response.errorMessage ?? 'Failed to rename miniapp';
+        return;
+      }
+
+      const updatedMiniapp = response.data;
+
+      this._items = this._items.map((currentItem) =>
+        currentItem.id === id ? updatedMiniapp : currentItem
+      );
+    });
   }
 
-  get items() {
+  async deleteMiniapps(ids: string[]) {
+    const responses = await Promise.all(ids.map((id) => miniappApi.deleteMiniapp(id)));
+    const failedResponse = responses.find((response) => response.isError);
+
+    if (failedResponse) {
+      runInAction(() => {
+        this._error = failedResponse.errorMessage ?? 'Failed to delete miniapps';
+      });
+      return;
+    }
+
+    const idSet = new Set(ids);
+
+    runInAction(() => {
+      this._items = this._items.filter((item) => !idSet.has(item.id));
+    });
+  }
+
+  async launchMiniapp(id: string) {
+    const response = await miniappApi.launchMiniapp(id);
+
+    if (response.isError || !response.data) {
+      runInAction(() => {
+        this._error = response.errorMessage ?? 'Failed to launch miniapp';
+      });
+      return;
+    }
+
+    window.open(response.data.launch_url, '_blank', 'noopener,noreferrer');
+  }
+
+  get items(): MiniappCardData[] {
     return this._items;
   }
 

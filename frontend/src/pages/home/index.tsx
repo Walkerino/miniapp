@@ -1,5 +1,13 @@
-import { useState, type CSSProperties, type Dispatch, type FormEvent, type SetStateAction } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type CSSProperties,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+} from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -66,55 +74,20 @@ import {
   TableRow,
 } from 'components/ui/table';
 import { sessionStore } from 'entities/session';
+import { miniappApi } from 'entities/miniapp';
+import type { Miniapp } from 'entities/miniapp';
 import { routesMasks } from 'shared/config/routesMasks';
 import { cn } from 'shared/lib/utils';
 
 const sidebarItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', active: true },
-  { icon: LayoutDashboard, label: 'MiniApps' },
-  { icon: User, label: 'Profile' },
+  { icon: LayoutDashboard, label: 'Dashboard', to: routesMasks.main.create() },
+  { icon: LayoutDashboard, label: 'MiniApps', to: routesMasks.miniapps.list() },
+  { icon: User, label: 'Profile', to: routesMasks.main.create() },
 ];
-
-const projectRows = [
-  {
-    logo: 'F',
-    title: 'Material Figma Version',
-    description: 'Design handoff workspace for the Material Shadcn dashboard.',
-    status: 'active',
-    color: 'bg-orange-500 text-white',
-  },
-  {
-    logo: 'G',
-    title: 'Add Progress Track',
-    description: 'Internal tracker for onboarding tasks and delivery milestones.',
-    status: 'pending',
-    color: 'bg-neutral-950 text-white',
-  },
-  {
-    logo: 'D',
-    title: 'Fix Platform Errors',
-    description: 'Issue triage console for runtime errors and support cases.',
-    status: 'disabled',
-    color: 'bg-indigo-500 text-white',
-  },
-  {
-    logo: 'G',
-    title: 'Launch Mobile App',
-    description: 'Release checklist and rollout panel for the mobile launch.',
-    status: 'active',
-    color: 'bg-neutral-950 text-white',
-  },
-  {
-    logo: 'S',
-    title: 'New Pricing Page',
-    description: 'Pricing experiment preview with segmented offer variants.',
-    status: 'deleted',
-    color: 'bg-blue-500 text-white',
-  },
-] as const;
 
 type VisibleStatus = 'pending' | 'active' | 'disabled';
 type ProjectRow = {
+  id: string;
   logo: string;
   title: string;
   description: string;
@@ -132,7 +105,34 @@ const statusVariants = {
 } satisfies Record<VisibleStatus, string>;
 
 const ROWS_PER_PAGE = 4;
-const initialRows = projectRows.filter((row) => row.status !== 'deleted') as VisibleProjectRow[];
+
+function getRowColor(status: VisibleStatus) {
+  if (status === 'active') {
+    return 'bg-emerald-600 text-white';
+  }
+
+  if (status === 'pending') {
+    return 'bg-amber-500 text-white';
+  }
+
+  return 'bg-stone-500 text-white';
+}
+
+function toVisibleRow(miniapp: Miniapp): VisibleProjectRow | null {
+  if (miniapp.status === 'deleted') {
+    return null;
+  }
+
+  return {
+    id: miniapp.id,
+    logo: miniapp.title[0]?.toUpperCase() || 'M',
+    title: miniapp.title,
+    description: miniapp.description || 'No description',
+    status: miniapp.status,
+    color: getRowColor(miniapp.status),
+    appUrl: miniapp.url,
+  };
+}
 
 type AppSidebarProps = {
   userName: string;
@@ -140,6 +140,7 @@ type AppSidebarProps = {
 };
 
 function AppSidebar({ userName, onLogout }: AppSidebarProps) {
+  const location = useLocation();
   const userInitials = userName
     .split(' ')
     .filter(Boolean)
@@ -174,11 +175,11 @@ function AppSidebar({ userName, onLogout }: AppSidebarProps) {
             <SidebarMenu>
               {sidebarItems.map((item) => (
                 <SidebarMenuItem key={item.label}>
-                  <SidebarMenuButton asChild isActive={item.active} tooltip={item.label}>
-                    <a href="/">
+                  <SidebarMenuButton asChild isActive={location.pathname === item.to} tooltip={item.label}>
+                    <Link to={item.to}>
                       <item.icon />
                       <span>{item.label}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -260,11 +261,12 @@ function MiniAppsChart({ rows }: MiniAppsChartProps) {
 }
 
 type ProjectsTableProps = {
+  onReload: () => Promise<void>;
   rows: VisibleProjectRow[];
   setRows: Dispatch<SetStateAction<VisibleProjectRow[]>>;
 };
 
-function ProjectsTable({ rows, setRows }: ProjectsTableProps) {
+function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTitles, setSelectedTitles] = useState<Set<string>>(() => new Set());
@@ -323,7 +325,7 @@ function ProjectsTable({ rows, setRows }: ProjectsTableProps) {
     setSelectedTitles(new Set());
   };
 
-  const createMiniApp = (event: FormEvent<HTMLFormElement>) => {
+  const createMiniApp = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const title = newMiniApp.title.trim();
@@ -334,21 +336,22 @@ function ProjectsTable({ rows, setRows }: ProjectsTableProps) {
       return;
     }
 
-    setRows((current) => [
-      ...current,
-      {
-        logo: title[0].toUpperCase(),
-        title,
-        description,
-        appUrl,
-        status: 'pending',
-        color: 'bg-neutral-950 text-white',
-      },
-    ]);
+    const response = await miniappApi.createMiniapp({
+      title,
+      description,
+      url: appUrl,
+      status: 'pending',
+    });
+
+    if (response.isError || !response.data) {
+      return;
+    }
+
     setNewMiniApp({ title: '', description: '', appUrl: '' });
     setStatusFilter('all');
-    setCurrentPage(Math.ceil((rows.length + 1) / ROWS_PER_PAGE));
+    setCurrentPage(1);
     setIsCreateOpen(false);
+    await onReload();
   };
 
   const saveRename = (event: FormEvent<HTMLFormElement>) => {
@@ -529,7 +532,7 @@ function ProjectsTable({ rows, setRows }: ProjectsTableProps) {
           </TableHeader>
           <TableBody>
             {pageRows.map((row) => (
-              <TableRow key={row.title}>
+              <TableRow key={row.id}>
                 <TableCell>
                   <div className="flex items-center gap-4">
                     <Checkbox
@@ -723,7 +726,30 @@ type DashboardContentProps = {
 };
 
 function DashboardContent({ userName }: DashboardContentProps) {
-  const [rows, setRows] = useState<VisibleProjectRow[]>(initialRows);
+  const [rows, setRows] = useState<VisibleProjectRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadMiniapps = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    const response = await miniappApi.getMiniapps({ limit: 100 });
+
+    setIsLoading(false);
+
+    if (response.isError || !response.data) {
+      setError(response.errorMessage ?? 'Failed to load miniapps');
+      return;
+    }
+
+    setRows(response.data.items.map(toVisibleRow).filter((row): row is VisibleProjectRow => Boolean(row)));
+  }, []);
+
+  useEffect(() => {
+    void loadMiniapps();
+  }, [loadMiniapps]);
+
 
   return (
     <div className="dashboard-shell">
@@ -731,8 +757,22 @@ function DashboardContent({ userName }: DashboardContentProps) {
         <p className="text-sm text-muted-foreground">Dashboard</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-normal">Добро пожаловать, {userName}</h1>
       </div>
-      <MiniAppsChart rows={rows} />
-      <ProjectsTable rows={rows} setRows={setRows} />
+      {isLoading ? (
+        <Card>
+          <CardContent className="py-8 text-sm text-muted-foreground">Loading miniapps...</CardContent>
+        </Card>
+      ) : error ? (
+        <Card>
+          <CardContent className="py-8 text-sm text-destructive" role="alert">
+            {error}
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <MiniAppsChart rows={rows} />
+          <ProjectsTable onReload={loadMiniapps} rows={rows} setRows={setRows} />
+        </>
+      )}
     </div>
   );
 }

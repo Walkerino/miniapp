@@ -56,7 +56,7 @@ func (s *Service) ListActive(user *pkg_dto.UserContext, page, limit int, search 
 	if err != nil {
 		return nil, err
 	}
-	items, total, err := s.miniapps.List(userID, page, limit, "active", strings.TrimSpace(search), false)
+	items, total, err := s.miniapps.List(userID, page, limit, "", strings.TrimSpace(search), false)
 	if err != nil {
 		return nil, err
 	}

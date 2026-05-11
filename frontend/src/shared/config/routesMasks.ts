@@ -12,8 +12,11 @@ export const routesMasks = {
     create: () => '/signup',
   },
   miniapps: {
+    listMask: '/miniapps',
+    legacyListMask: '/miniApps',
     createMask: '/miniapps/new',
     editMask: '/miniapps/:miniappId/edit',
+    list: () => '/miniapps',
     create: () => '/miniapps/new',
     edit: (miniappId: string) => `/miniapps/${miniappId}/edit`,
   },

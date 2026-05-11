@@ -1,9 +1,11 @@
-import { customGet, customPatch, customPost } from 'api';
+import { customDelete, customGet, customPatch, customPost } from 'api';
 import type { ApiAnswer } from 'api';
 import { mockMiniappApi } from 'entities/miniapp/api/mockMiniappApi';
 import type {
   AuthUser,
   CreateMiniappRequest,
+  FavoriteResponse,
+  LaunchMiniappResponse,
   Miniapp,
   MiniappFormData,
   MiniappListParams,
@@ -12,7 +14,7 @@ import type {
   UserRole,
 } from 'entities/miniapp/model/types';
 
-const shouldUseMockMiniapps = import.meta.env.VITE_USE_MOCK_MINIAPPS !== 'false';
+const shouldUseMockMiniapps = import.meta.env.VITE_USE_MOCK_MINIAPPS === 'true';
 
 function getMiniappsPath(role: UserRole) {
   return role === 'admin' ? '/api/admin/miniapps' : '/api/miniapps';
@@ -141,10 +143,46 @@ async function updateMiniapp(id: string, data: MiniappFormData): Promise<ApiAnsw
   return customPatch<UpdateMiniappRequest, Miniapp>(getAdminMiniappPath(id), requestData);
 }
 
+async function deleteMiniapp(id: string): Promise<ApiAnswer<void>> {
+  if (shouldUseMockMiniapps) {
+    return mockMiniappApi.deleteMiniapp(id);
+  }
+
+  return customDelete<void>(getAdminMiniappPath(id));
+}
+
+async function addFavorite(id: string): Promise<ApiAnswer<FavoriteResponse>> {
+  if (shouldUseMockMiniapps) {
+    return mockMiniappApi.addFavorite(id);
+  }
+
+  return customPost<void, FavoriteResponse>(`/api/miniapps/${id}/favorite`, undefined);
+}
+
+async function removeFavorite(id: string): Promise<ApiAnswer<void>> {
+  if (shouldUseMockMiniapps) {
+    return mockMiniappApi.removeFavorite(id);
+  }
+
+  return customDelete<void>(`/api/miniapps/${id}/favorite`);
+}
+
+async function launchMiniapp(id: string): Promise<ApiAnswer<LaunchMiniappResponse>> {
+  if (shouldUseMockMiniapps) {
+    return mockMiniappApi.launchMiniapp(id);
+  }
+
+  return customPost<void, LaunchMiniappResponse>(`/api/miniapps/${id}/launch`, undefined);
+}
+
 export const miniappApi = {
+  addFavorite,
   createMiniapp,
+  deleteMiniapp,
   getCurrentUser,
   getMiniappById,
   getMiniapps,
+  launchMiniapp,
+  removeFavorite,
   updateMiniapp,
 };

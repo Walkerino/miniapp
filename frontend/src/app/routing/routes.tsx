@@ -4,6 +4,7 @@ import App from 'app/App';
 import { HomePage } from 'pages/home';
 import { LoginPage } from 'pages/login';
 import { MiniappEditorPage } from 'pages/miniapp-editor';
+import { MiniappsPage } from 'pages/miniapps';
 import { SignUpPage } from 'pages/signup';
 import { routesMasks } from 'shared/config/routesMasks';
 import { GuestRoute, ProtectedRoute } from './ProtectedRoute';
@@ -20,6 +21,18 @@ export const routes: RouteObject[] = [
             <HomePage />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: routesMasks.miniapps.listMask,
+        element: (
+          <ProtectedRoute>
+            <MiniappsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: routesMasks.miniapps.legacyListMask,
+        element: <Navigate to={routesMasks.miniapps.list()} replace />,
       },
       {
         path: routesMasks.miniapps.createMask,

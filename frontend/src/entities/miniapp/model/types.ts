@@ -26,6 +26,18 @@ export type Miniapp = {
   updated_at: string;
 };
 
+export type LaunchMiniappResponse = {
+  launch_url: string;
+  launch_token: string;
+  expires_at: string;
+};
+
+export type FavoriteResponse = {
+  user_id: string;
+  miniapp_id: string;
+  created_at: string;
+};
+
 export type MiniappCardData = Pick<
   Miniapp,
   'id' | 'title' | 'description' | 'url' | 'status' | 'is_favorite'
