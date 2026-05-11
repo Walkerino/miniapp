@@ -1,6 +1,6 @@
 export { authApi } from './authApi';
 export { userApi } from './userApi';
-export { customGet, customPost } from './customRequests';
+export { customGet, customPatch, customPost } from './customRequests';
 export {
   clearAuthTokens,
   getAccessToken,
