@@ -15,15 +15,8 @@ export type LoginData = {
 
 export type AuthResponse = {
   access_token: string;
-  refresh_token: string;
   user: AuthUser;
 };
-
-export type RefreshTokenData = {
-  refresh_token: string;
-};
-
-export type LogoutData = RefreshTokenData;
 
 function register(data: RegisterData) {
   return customPost<RegisterData, AuthResponse>('/api/auth/register', data);
@@ -37,12 +30,12 @@ export const authApi = {
     return customPost<LoginData, AuthResponse>('/api/auth/login', data);
   },
 
-  refresh(data: RefreshTokenData) {
-    return customPost<RefreshTokenData, AuthResponse>('/api/auth/refresh', data);
+  refresh() {
+    return customPost<void, AuthResponse>('/api/auth/refresh');
   },
 
-  logout(data: LogoutData) {
-    return customPost<LogoutData, void>('/api/auth/logout', data);
+  logout() {
+    return customPost<void, void>('/api/auth/logout');
   },
 
   me() {
