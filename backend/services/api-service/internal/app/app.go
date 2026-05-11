@@ -26,7 +26,7 @@ func Run(log *logger.Log, cfg *config.Config) {
 	mux.Handle("/api/auth/register", gateway.AuthProxy("/api/auth", false))
 	mux.Handle("/api/auth/login", gateway.AuthProxy("/api/auth", false))
 	mux.Handle("/api/auth/refresh", gateway.AuthProxy("/api/auth", false))
-	mux.Handle("/api/auth/logout", gateway.AuthMiddleware(gateway.AuthProxy("/api/auth", true)))
+	mux.Handle("/api/auth/logout", gateway.AuthProxy("/api/auth", false))
 	mux.Handle("/api/auth/me", gateway.AuthMiddleware(gateway.AuthProxy("/api/auth", true)))
 
 	mux.Handle("/api/admin/users", gateway.AdminMiddleware(gateway.AuthProxy("/api", true)))

@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 )
+
+const refreshTokenCookieName = "refresh_token"
 
 func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -38,6 +39,7 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setRefreshTokenCookie(w, token)
 	writeJSON(w, http.StatusCreated, token)
 }
 
@@ -70,6 +72,7 @@ func (h *Handler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	setRefreshTokenCookie(w, token)
 	writeJSON(w, http.StatusOK, token)
 }
 
@@ -79,25 +82,20 @@ func (h *Handler) RefreshHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req pkg_dto.RefreshRequest
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "Invalid request body")
-		h.log.Logger.Error("refresh request body decoding error", "error", err)
-		return
-	}
-	if err := validateRefreshRequest(req); err != nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "Invalid refresh request")
+	refreshToken, err := refreshTokenFromCookie(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized", "Missing refresh token")
 		return
 	}
 
-	token, err := h.service.Refresh(req.RefreshToken, r.UserAgent(), clientIP(r))
+	token, err := h.service.Refresh(refreshToken, r.UserAgent(), clientIP(r))
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		h.log.Logger.Error("service error", "error", err)
 		return
 	}
 
+	setRefreshTokenCookie(w, token)
 	writeJSON(w, http.StatusOK, token)
 }
 
@@ -107,22 +105,20 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req pkg_dto.LogoutRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "Invalid request body")
-		h.log.Logger.Error("logout request body decoding error", "error", err)
-		return
-	}
-	if strings.TrimSpace(req.RefreshToken) == "" {
-		writeError(w, http.StatusBadRequest, "bad_request", "Invalid logout request")
+	refreshToken, err := refreshTokenFromCookie(r)
+	if err != nil {
+		clearRefreshTokenCookie(w)
+		writeError(w, http.StatusUnauthorized, "unauthorized", "Missing refresh token")
 		return
 	}
 
-	if err := h.service.Logout(req.RefreshToken); err != nil {
+	if err := h.service.Logout(refreshToken); err != nil {
+		clearRefreshTokenCookie(w)
 		writeError(w, http.StatusUnauthorized, "unauthorized", err.Error())
 		return
 	}
 
+	clearRefreshTokenCookie(w)
 	writeJSON(w, http.StatusNoContent, nil)
 }
 
@@ -145,4 +141,37 @@ func (h *Handler) MeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, user)
+}
+
+func refreshTokenFromCookie(r *http.Request) (string, error) {
+	cookie, err := r.Cookie(refreshTokenCookieName)
+	if err != nil || cookie.Value == "" {
+		return "", ErrInvalidRequest
+	}
+
+	return cookie.Value, nil
+}
+
+func setRefreshTokenCookie(w http.ResponseWriter, token *pkg_dto.TokenResponse) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     refreshTokenCookieName,
+		Value:    token.RefreshToken,
+		Path:     "/api/auth",
+		Expires:  token.RefreshExpiresAt,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func clearRefreshTokenCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     refreshTokenCookieName,
+		Value:    "",
+		Path:     "/api/auth",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
 }

@@ -10,9 +10,10 @@ type TokenPair struct {
 }
 
 type TokenResponse struct {
-	AccessToken  string       `json:"access_token"`
-	RefreshToken string       `json:"refresh_token"`
-	User         UserResponse `json:"user"`
+	AccessToken      string       `json:"access_token"`
+	RefreshToken     string       `json:"-"`
+	RefreshExpiresAt time.Time    `json:"-"`
+	User             UserResponse `json:"user"`
 }
 
 type RegisterRequest struct {
@@ -24,14 +25,6 @@ type RegisterRequest struct {
 type LoginRequest struct {
 	Email    string `json:"email" example:"test@mail.com"`
 	Password string `json:"password" example:"qwerty123"`
-}
-
-type RefreshRequest struct {
-	RefreshToken string `json:"refresh_token"`
-}
-
-type LogoutRequest struct {
-	RefreshToken string `json:"refresh_token"`
 }
 
 type ValidateResponse struct {
