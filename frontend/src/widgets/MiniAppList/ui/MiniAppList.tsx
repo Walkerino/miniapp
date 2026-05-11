@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useNavigate } from 'react-router-dom';
 
+import { Card, CardContent } from 'components/ui/card';
 import { routesMasks } from 'shared/config/routesMasks';
 import { useLocalStore } from 'shared/lib/useLocalStore';
 import { MiniAppListStore } from 'widgets/MiniAppList/model/MiniAppListStore';
@@ -17,11 +18,27 @@ export const MiniAppList = observer(() => {
   }, [store]);
 
   if (store.isLoading) {
-    return <p>Loading miniapps...</p>;
+    return (
+      <section className="dashboard-shell">
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Loading miniapps...
+          </CardContent>
+        </Card>
+      </section>
+    );
   }
 
   if (store.error) {
-    return <p role="alert">{store.error}</p>;
+    return (
+      <section className="dashboard-shell">
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-destructive" role="alert">
+            {store.error}
+          </CardContent>
+        </Card>
+      </section>
+    );
   }
 
   return (
@@ -29,6 +46,9 @@ export const MiniAppList = observer(() => {
       items={store.items}
       onCreate={() => navigate(routesMasks.miniapps.create())}
       onEdit={(id) => navigate(routesMasks.miniapps.edit(id))}
+      onDelete={store.deleteMiniapps}
+      onLaunch={store.launchMiniapp}
+      onRename={store.renameMiniapp}
       onToggleFavorite={store.toggleFavorite}
     />
   );
