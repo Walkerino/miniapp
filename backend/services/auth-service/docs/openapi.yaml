@@ -1,0 +1,225 @@
+openapi: 3.0.3
+info:
+  title: Finance Auth Service
+  version: 0.1.0
+  description: Authentication service for user registration, login, token refresh, and access token validation.
+servers:
+  - url: http://localhost:8081
+    description: Local auth service
+tags:
+  - name: Auth
+  - name: Token
+  - name: Health
+paths:
+  /register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new user
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+            example:
+              email: test@mail.com
+              password: qwerty123
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email already exists
+          content:
+            text/plain:
+              schema:
+                type: string
+  /login:
+    post:
+      tags:
+        - Auth
+      summary: Login user
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+            example:
+              email: test@mail.com
+              password: qwerty123
+      responses:
+        '200':
+          description: Login succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /refresh:
+    post:
+      tags:
+        - Token
+      summary: Refresh access token
+      operationId: refresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            example:
+              refresh_token: refresh-token
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /validate:
+    get:
+      tags:
+        - Token
+      summary: Validate access token
+      operationId: validateAccessTokenGet
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Token
+      summary: Validate access token
+      operationId: validateAccessTokenPost
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      operationId: health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    AuthRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: test@mail.com
+        password:
+          type: string
+          format: password
+          minLength: 1
+          example: qwerty123
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          example: refresh-token
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - refresh_token
+        - expires_at
+      properties:
+        access_token:
+          type: string
+          example: access-token
+        refresh_token:
+          type: string
+          example: refresh-token
+        expires_at:
+          type: string
+          format: date-time
+          example: '2026-05-10T12:00:00Z'
+    ValidateResponse:
+      type: object
+      required:
+        - user_id
+        - email
+        - expires_at
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          example: 00000000-0000-0000-0000-000000000000
+        email:
+          type: string
+          format: email
+          example: test@mail.com
+        expires_at:
+          type: string
+          format: date-time
+          example: '2026-05-10T12:00:00Z'
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: ok
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        text/plain:
+          schema:
+            type: string
+    Unauthorized:
+      description: Unauthorized
+      content:
+        text/plain:
+          schema:
+            type: string

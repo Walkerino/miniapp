@@ -1,4 +1,45 @@
 services:
+  auth-db:
+    image: postgres:16-alpine
+    container_name: miniapp-auth-db
+    environment:
+      POSTGRES_DB: auth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d auth"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ../services/auth-service
+      dockerfile: Dockerfile
+    container_name: miniapp-auth-service
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    environment:
+      SERVER_ADDR: :8080
+      USER_DB_URL: postgres://postgres:postgres@auth-db:5432/auth?sslmode=disable
+      TOKEN_DB_URL: postgres://postgres:postgres@auth-db:5432/auth?sslmode=disable
+      MIGRATIONS_DB_URL: postgres://postgres:postgres@auth-db:5432/auth?sslmode=disable
+      JWT_SECRET: secret
+      JWT_ACCESS_TTL: 1h
+      JWT_REFRESH_TTL: 720h
+      BCRYPT_COST: 12
+      DB_WAIT_RETRIES: 30
+      DB_WAIT_DELAY_SECONDS: 2
+    ports:
+      - "8081:8080"
+    restart: unless-stopped
+
   swagger-ui:
     image: swaggerapi/swagger-ui:latest
     container_name: miniapp-swagger-ui
@@ -9,3 +50,6 @@ services:
     volumes:
       - ../services/api-service/docs/openapi.yaml:/docs/openapi.yaml:ro
     restart: unless-stopped
+
+volumes:
+  auth-db-data:
