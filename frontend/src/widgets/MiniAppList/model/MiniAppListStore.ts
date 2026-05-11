@@ -115,6 +115,19 @@ export class MiniAppListStore implements ILocalStore {
     window.open(response.data.launch_url, '_blank', 'noopener,noreferrer');
   }
 
+  async getMiniappLaunchUrl(id: string) {
+    const response = await miniappApi.launchMiniapp(id);
+
+    if (response.isError || !response.data) {
+      runInAction(() => {
+        this._error = response.errorMessage ?? 'Failed to launch miniapp';
+      });
+      return null;
+    }
+
+    return response.data.launch_url;
+  }
+
   get items(): MiniappCardData[] {
     return this._items;
   }

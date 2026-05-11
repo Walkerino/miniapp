@@ -47,6 +47,7 @@ export const MiniAppList = observer(() => {
       onCreate={() => navigate(routesMasks.miniapps.create())}
       onEdit={(id) => navigate(routesMasks.miniapps.edit(id))}
       onDelete={store.deleteMiniapps}
+      onPreview={store.getMiniappLaunchUrl}
       onLaunch={store.launchMiniapp}
       onRename={store.renameMiniapp}
       onToggleFavorite={store.toggleFavorite}

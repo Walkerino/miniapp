@@ -28,6 +28,7 @@ type MiniAppListViewProps = {
   onCreate: () => void;
   onDelete: (ids: string[]) => void | Promise<void>;
   onEdit: (id: string) => void;
+  onPreview: (id: string) => string | null | Promise<string | null>;
   onLaunch: (id: string) => void | Promise<void>;
   onRename: (id: string, title: string, description: string) => void | Promise<void>;
   onToggleFavorite: (id: string) => void | Promise<void>;
@@ -38,6 +39,7 @@ export function MiniAppListView({
   onCreate,
   onDelete,
   onEdit,
+  onPreview,
   onLaunch,
   onRename,
   onToggleFavorite,
@@ -144,6 +146,7 @@ export function MiniAppListView({
                 miniapp={miniapp}
                 onEdit={() => onEdit(miniapp.id)}
                 onLaunch={onLaunch}
+                onPreview={onPreview}
                 onRename={onRename}
                 onSelect={(checked) => toggleItemSelection(miniapp.id, checked)}
                 onToggleFavorite={onToggleFavorite}
