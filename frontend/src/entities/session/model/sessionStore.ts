@@ -1,12 +1,13 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 
-import { authApi, clearAuthTokens, getRefreshToken, saveAuthTokens } from 'api';
+import { authApi, clearAuthTokens, saveAuthTokens } from 'api';
 import type { AuthResponse } from 'api';
 import type { AuthUser } from 'entities/user';
 
 export class SessionStore {
   private _isAuth = false;
   private _user: AuthUser | null = null;
+  private _checkAuthPromise: Promise<boolean> | null = null;
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
@@ -23,14 +24,21 @@ export class SessionStore {
       return true;
     }
 
-    const refreshToken = getRefreshToken();
-
-    if (!refreshToken) {
-      this.clearSession();
-      return false;
+    if (this._checkAuthPromise) {
+      return this._checkAuthPromise;
     }
 
-    const response = await authApi.refresh({ refresh_token: refreshToken });
+    this._checkAuthPromise = this.refreshSession();
+
+    try {
+      return await this._checkAuthPromise;
+    } finally {
+      this._checkAuthPromise = null;
+    }
+  }
+
+  private async refreshSession() {
+    const response = await authApi.refresh();
 
     if (response.isError || !response.data) {
       this.clearSession();
@@ -47,13 +55,8 @@ export class SessionStore {
   }
 
   async logout() {
-    const refreshToken = getRefreshToken();
-
     this.clearSession();
-
-    if (refreshToken) {
-      await authApi.logout({ refresh_token: refreshToken });
-    }
+    await authApi.logout();
   }
 
   clearSession() {

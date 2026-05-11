@@ -2,7 +2,6 @@ const AUTH_TOKENS_STORAGE_KEY = 'authTokens';
 
 export type AuthTokens = {
   access_token: string;
-  refresh_token: string;
 };
 
 function getStorage() {
@@ -20,10 +19,7 @@ function isAuthTokens(value: unknown): value is AuthTokens {
 
   const tokens = value as Partial<AuthTokens>;
 
-  return (
-    typeof tokens.access_token === 'string' &&
-    typeof tokens.refresh_token === 'string'
-  );
+  return typeof tokens.access_token === 'string';
 }
 
 export function saveAuthTokens(tokens: AuthTokens) {
@@ -32,7 +28,6 @@ export function saveAuthTokens(tokens: AuthTokens) {
       AUTH_TOKENS_STORAGE_KEY,
       JSON.stringify({
         access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
       })
     );
   } catch {
@@ -59,10 +54,6 @@ export function getAuthTokens() {
 
 export function getAccessToken() {
   return getAuthTokens()?.access_token ?? null;
-}
-
-export function getRefreshToken() {
-  return getAuthTokens()?.refresh_token ?? null;
 }
 
 export function hasAuthTokens() {

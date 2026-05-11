@@ -81,7 +81,7 @@ export async function customGet<T>(path: string): Promise<ApiAnswer<T>> {
 
 export async function customPost<TBody, TResponse>(
   path: string,
-  data: TBody
+  data?: TBody
 ): Promise<ApiAnswer<TResponse>> {
   try {
     const authorizationHeaders = getAuthorizationHeaders(path);
@@ -89,10 +89,10 @@ export async function customPost<TBody, TResponse>(
       method: 'POST',
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
+        ...(data === undefined ? {} : { 'Content-Type': 'application/json' }),
         ...authorizationHeaders,
       },
-      body: JSON.stringify(data),
+      body: data === undefined ? undefined : JSON.stringify(data),
     });
 
     const status = response.status;

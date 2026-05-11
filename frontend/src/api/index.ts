@@ -5,7 +5,6 @@ export {
   clearAuthTokens,
   getAccessToken,
   getAuthTokens,
-  getRefreshToken,
   hasAuthTokens,
   saveAuthTokens,
 } from './tokenStorage';
@@ -13,8 +12,6 @@ export type { ApiAnswer } from './customRequests';
 export type {
   AuthResponse,
   LoginData,
-  LogoutData,
-  RefreshTokenData,
   RegisterData,
   SignUpData,
 } from './authApi';
