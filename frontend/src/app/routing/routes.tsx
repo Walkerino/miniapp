@@ -6,6 +6,7 @@ import { LoginPage } from 'pages/login';
 import { MiniappEditorPage } from 'pages/miniapp-editor';
 import { SignUpPage } from 'pages/signup';
 import { routesMasks } from 'shared/config/routesMasks';
+import { GuestRoute, ProtectedRoute } from './ProtectedRoute';
 
 export const routes: RouteObject[] = [
   {
@@ -15,15 +16,43 @@ export const routes: RouteObject[] = [
       {
         index: true,
         element: (
-          // <ProtectedRoute>
+          <ProtectedRoute>
             <HomePage />
-          // </ProtectedRoute>
+          </ProtectedRoute>
         ),
       },
-      { path: routesMasks.miniapps.createMask, element: <MiniappEditorPage /> },
-      { path: routesMasks.miniapps.editMask, element: <MiniappEditorPage /> },
-      { path: routesMasks.login.mask, element: <LoginPage /> },
-      { path: routesMasks.signup.mask, element: <SignUpPage /> },
+      {
+        path: routesMasks.miniapps.createMask,
+        element: (
+          <ProtectedRoute>
+            <MiniappEditorPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: routesMasks.miniapps.editMask,
+        element: (
+          <ProtectedRoute>
+            <MiniappEditorPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: routesMasks.login.mask,
+        element: (
+          <GuestRoute>
+            <LoginPage />
+          </GuestRoute>
+        ),
+      },
+      {
+        path: routesMasks.signup.mask,
+        element: (
+          <GuestRoute>
+            <SignUpPage />
+          </GuestRoute>
+        ),
+      },
       { path: '*', element: <Navigate to={routesMasks.main.mask} replace /> },
     ],
   },

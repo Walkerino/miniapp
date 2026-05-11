@@ -1,8 +1,9 @@
-import type { AuthResponse } from './authApi';
-
 const AUTH_TOKENS_STORAGE_KEY = 'authTokens';
 
-export type AuthTokens = AuthResponse;
+export type AuthTokens = {
+  access_token: string;
+  refresh_token: string;
+};
 
 function getStorage() {
   if (typeof window === 'undefined') {
@@ -21,14 +22,19 @@ function isAuthTokens(value: unknown): value is AuthTokens {
 
   return (
     typeof tokens.access_token === 'string' &&
-    typeof tokens.refresh_token === 'string' &&
-    typeof tokens.expires_at === 'string'
+    typeof tokens.refresh_token === 'string'
   );
 }
 
 export function saveAuthTokens(tokens: AuthTokens) {
   try {
-    getStorage()?.setItem(AUTH_TOKENS_STORAGE_KEY, JSON.stringify(tokens));
+    getStorage()?.setItem(
+      AUTH_TOKENS_STORAGE_KEY,
+      JSON.stringify({
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+      })
+    );
   } catch {
     clearAuthTokens();
   }

@@ -1,2 +1,2 @@
 export { userApi } from './api/userApi';
-export type { UserData } from './model/types';
+export type { AuthUser, UserData, UserRole } from './model/types';

@@ -1,17 +1,19 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 
-import { authApi, saveAuthTokens } from 'api';
+import { authApi } from 'api';
 import { sessionStore } from 'entities/session';
 import type { ILocalStore } from 'shared/lib/useLocalStore';
 
 type FieldErrors = {
   form?: string;
+  name?: string;
   email?: string;
   password?: string;
   confirmPassword?: string;
 };
 
 export class RegisterStore implements ILocalStore {
+  private _name = '';
   private _email = '';
   private _password = '';
   private _confirmPassword = '';
@@ -20,6 +22,11 @@ export class RegisterStore implements ILocalStore {
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
+  }
+
+  setName(name: string) {
+    this._name = name;
+    this.clearErrors('name');
   }
 
   setEmail(email: string) {
@@ -49,22 +56,26 @@ export class RegisterStore implements ILocalStore {
   validate() {
     this._errors = {};
 
+    if (!this._name.trim()) {
+      this._errors.name = 'Name is required';
+    }
+
     if (!this._email) {
-      this._errors.email = 'Email обязателен';
+      this._errors.email = 'Email is required';
     } else if (!/^\S+@\S+\.\S+$/.test(this._email)) {
-      this._errors.email = 'Некорректный email';
+      this._errors.email = 'Invalid email';
     }
 
     if (!this._password) {
-      this._errors.password = 'Пароль обязателен';
+      this._errors.password = 'Password is required';
     } else if (this._password.length < 6) {
-      this._errors.password = 'Минимум 6 символов';
+      this._errors.password = 'Minimum 6 characters';
     }
 
     if (!this._confirmPassword) {
-      this._errors.confirmPassword = 'Подтвердите пароль';
+      this._errors.confirmPassword = 'Confirm password';
     } else if (this._password !== this._confirmPassword) {
-      this._errors.confirmPassword = 'Пароли не совпадают';
+      this._errors.confirmPassword = 'Passwords do not match';
     }
 
     return Object.keys(this._errors).length === 0;
@@ -75,7 +86,8 @@ export class RegisterStore implements ILocalStore {
       return false;
     }
 
-    const result = await authApi.signUp({
+    const result = await authApi.register({
+      name: this._name.trim(),
       email: this._email,
       password: this._password,
     });
@@ -86,36 +98,36 @@ export class RegisterStore implements ILocalStore {
 
     if (result.isError && !result.status) {
       runInAction(() => {
-        this._errors.form = 'Соединение не установлено';
+        this._errors.form = 'Connection failed';
       });
       return false;
     }
 
     if (result.isError && (result.status === 400 || result.status === 409)) {
       runInAction(() => {
-        this._errors.form = 'Такой пользователь уже существует';
+        this._errors.form = 'User already exists';
       });
       return false;
     }
 
     if (result.isError) {
       runInAction(() => {
-        this._errors.form = 'Не удалось зарегистрироваться';
+        this._errors.form = 'Could not register';
       });
       return false;
     }
 
     if (!result.data) {
       runInAction(() => {
-        this._errors.form = 'Не удалось зарегистрироваться';
+        this._errors.form = 'Could not register';
       });
       return false;
     }
 
-    saveAuthTokens(result.data);
+    const authResponse = result.data;
 
     runInAction(() => {
-      sessionStore.setAuth();
+      sessionStore.setSession(authResponse);
       this._success = true;
     });
 
@@ -124,6 +136,10 @@ export class RegisterStore implements ILocalStore {
 
   get success() {
     return this._success;
+  }
+
+  get name() {
+    return this._name;
   }
 
   get email() {
@@ -143,10 +159,11 @@ export class RegisterStore implements ILocalStore {
   }
 
   get canSubmit() {
-    return Boolean(this._email && this._password && this._confirmPassword);
+    return Boolean(this._name && this._email && this._password && this._confirmPassword);
   }
 
   destroy() {
+    this._name = '';
     this._email = '';
     this._password = '';
     this._confirmPassword = '';
