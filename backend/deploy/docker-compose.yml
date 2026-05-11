@@ -40,6 +40,65 @@ services:
       - "8081:8080"
     restart: unless-stopped
 
+  miniapp-db:
+    image: postgres:16-alpine
+    container_name: miniapp-miniapp-db
+    environment:
+      POSTGRES_DB: miniapp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - miniapp-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d miniapp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  miniapp-service:
+    build:
+      context: ../services/miniapp-service
+      dockerfile: Dockerfile
+    container_name: miniapp-miniapp-service
+    depends_on:
+      miniapp-db:
+        condition: service_healthy
+    environment:
+      SERVER_ADDR: :8080
+      MINIAPP_DB_URL: postgres://postgres:postgres@miniapp-db:5432/miniapp?sslmode=disable
+      MIGRATIONS_DB_URL: postgres://postgres:postgres@miniapp-db:5432/miniapp?sslmode=disable
+      LAUNCH_TOKEN_TTL: 5m
+      DB_WAIT_RETRIES: 30
+      DB_WAIT_DELAY_SECONDS: 2
+    ports:
+      - "8082:8080"
+    restart: unless-stopped
+
+  api-service:
+    build:
+      context: ../services/api-service
+      dockerfile: Dockerfile
+    container_name: miniapp-api-service
+    depends_on:
+      auth-service:
+        condition: service_started
+      miniapp-service:
+        condition: service_started
+    environment:
+      SERVER_ADDR: :8080
+      AUTH_SERVICE_URL: http://auth-service:8080
+      MINIAPP_SERVICE_URL: http://miniapp-service:8080
+      CORS_ALLOWED_ORIGINS: "*"
+      CORS_ALLOWED_METHODS: GET,POST,PATCH,DELETE,OPTIONS
+      CORS_ALLOWED_HEADERS: Authorization,Content-Type,X-Requested-With
+      CORS_ALLOW_CREDENTIALS: "true"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
   swagger-ui:
     image: swaggerapi/swagger-ui:latest
     container_name: miniapp-swagger-ui
@@ -53,3 +112,4 @@ services:
 
 volumes:
   auth-db-data:
+  miniapp-db-data:

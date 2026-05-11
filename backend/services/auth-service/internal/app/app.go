@@ -16,16 +16,27 @@ func Run(logger *logger.Log, cfg *config.Config) {
 	container.Logger.Logger.Info("application initialized successfully")
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/register", container.Handler.RegisterHandler)
-	mux.HandleFunc("/login", container.Handler.LoginHandler)
-	mux.HandleFunc("/refresh", container.Handler.RefreshHandler)
-	mux.HandleFunc("/logout", container.Handler.LogoutHandler)
-	mux.HandleFunc("/me", container.Handler.MeHandler)
-	mux.HandleFunc("/validate", container.Handler.ValidateHandler)
-	mux.HandleFunc("/health", container.Handler.HealthHandler)
-	mux.HandleFunc("/admin/users", container.Handler.AdminUsersHandler)
-	mux.HandleFunc("/admin/users/promote", container.Handler.PromoteUserHandler)
-	mux.HandleFunc("/admin/users/", container.Handler.UserActivationHandler)
+	routes := []struct {
+		path    string
+		handler http.HandlerFunc
+	}{
+		{"/register", container.Handler.RegisterHandler},
+		{"/login", container.Handler.LoginHandler},
+		{"/refresh", container.Handler.RefreshHandler},
+		{"/logout", container.Handler.LogoutHandler},
+		{"/me", container.Handler.MeHandler},
+		{"/validate", container.Handler.ValidateHandler},
+		{"/health", container.Handler.HealthHandler},
+		{"/admin/users", container.Handler.AdminUsersHandler},
+		{"/admin/users/promote", container.Handler.PromoteUserHandler},
+		{"/admin/users/", container.Handler.UserActivationHandler},
+	}
+	routePaths := make([]string, 0, len(routes))
+	for _, route := range routes {
+		mux.HandleFunc(route.path, route.handler)
+		routePaths = append(routePaths, route.path)
+	}
+	container.Logger.Logger.Info("registered routes", "routes", routePaths)
 
 	publicPaths := map[string]struct{}{
 		"/register": {},
@@ -63,6 +74,6 @@ func Run(logger *logger.Log, cfg *config.Config) {
 	if err := server.Shutdown(ctx); err != nil {
 		container.Logger.Logger.Warn("Server forced to shutdown", "error", err)
 	} else {
-		container.Logger.Logger.Info("Server stoppe gracefully")
+		container.Logger.Logger.Info("Server stopped gracefully")
 	}
 }
