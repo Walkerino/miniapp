@@ -96,7 +96,7 @@ services:
       CORS_ALLOWED_HEADERS: Authorization,Content-Type,X-Requested-With
       CORS_ALLOW_CREDENTIALS: "true"
     ports:
-      - "8080:8080"
+      - "8086:8080"
     restart: unless-stopped
 
   swagger-ui:
