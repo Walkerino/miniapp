@@ -21,41 +21,91 @@ export const LoginForm = observer(function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      {store.errors.form && <p role="alert">{store.errors.form}</p>}
+    <form className="auth-card" onSubmit={handleSubmit}>
+      <div className="auth-card__title">
+        <h1>Sign In</h1>
+        <p>Welcome back! Please sign in to your account</p>
+      </div>
 
-      <div>
+      {store.errors.form && (
+        <p className="auth-card__alert" role="alert">
+          {store.errors.form}
+        </p>
+      )}
+
+      <div className="auth-field">
         <label htmlFor="login-email">Email</label>
         <input
           id="login-email"
           name="email"
           type="email"
+          placeholder="your@mail.com"
           value={store.email}
           onChange={(event) => store.setEmail(event.target.value)}
           required
         />
-        {store.errors.email && <p role="alert">{store.errors.email}</p>}
+        {store.errors.email && (
+          <p className="auth-field__error" role="alert">
+            {store.errors.email}
+          </p>
+        )}
       </div>
 
-      <div>
-        <label htmlFor="login-password">Пароль</label>
+      <div className="auth-field">
+        <label htmlFor="login-password">Password</label>
         <input
           id="login-password"
           name="password"
           type="password"
+          placeholder="********"
           value={store.password}
           onChange={(event) => store.setPassword(event.target.value)}
           required
         />
-        {store.errors.password && <p role="alert">{store.errors.password}</p>}
+        {store.errors.password && (
+          <p className="auth-field__error" role="alert">
+            {store.errors.password}
+          </p>
+        )}
       </div>
 
-      <button type="submit" disabled={!store.canSubmit}>
-        Войти
+      <div className="auth-card__row">
+        <label className="auth-card__remember">
+          <input type="checkbox" />
+          <span>Remember Me</span>
+        </label>
+        <button className="auth-card__ghost" type="button">
+          Forgot Password?
+        </button>
+      </div>
+
+      <button className="auth-card__submit" type="submit" disabled={!store.canSubmit}>
+        Sign In
       </button>
 
-      <p>
-        Нет аккаунта? <Link to={routesMasks.signup.create()}>Зарегистрироваться</Link>
+      <div className="auth-card__divider">
+        <span />
+        <p>or continue with</p>
+        <span />
+      </div>
+
+      <div className="auth-card__socials">
+        <button type="button">
+          <span className="auth-card__google" aria-hidden="true">
+            G
+          </span>
+          Google
+        </button>
+        <button type="button">
+          <span className="auth-card__github" aria-hidden="true">
+            G
+          </span>
+          GitHub
+        </button>
+      </div>
+
+      <p className="auth-card__signup">
+        Don&apos;t have an account? <Link to={routesMasks.signup.create()}>Sign Up</Link>
       </p>
     </form>
   );

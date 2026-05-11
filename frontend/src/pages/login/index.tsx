@@ -2,8 +2,7 @@ import { LoginForm } from 'features/auth/login';
 
 export function LoginPage() {
   return (
-    <main>
-      <h1>Вход</h1>
+    <main className="auth-page">
       <LoginForm />
     </main>
   );

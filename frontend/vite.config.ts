@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import tailwindcss from '@tailwindcss/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import { fileURLToPath } from 'node:url'
@@ -16,10 +17,12 @@ export default defineConfig({
       features: resolve(root, 'src/features'),
       entities: resolve(root, 'src/entities'),
       shared: resolve(root, 'src/shared'),
+      components: resolve(root, 'src/components'),
     },
   },
   plugins: [
     react(),
+    tailwindcss(),
     babel({ presets: [reactCompilerPreset()] })
   ],
 })

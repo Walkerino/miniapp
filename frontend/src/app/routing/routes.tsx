@@ -1,7 +1,6 @@
 import { Navigate, type RouteObject } from 'react-router-dom';
 
 import App from 'app/App';
-import { ProtectedRoute } from 'app/routing/ProtectedRoute';
 import { HomePage } from 'pages/home';
 import { LoginPage } from 'pages/login';
 import { MiniappEditorPage } from 'pages/miniapp-editor';
