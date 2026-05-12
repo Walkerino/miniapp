@@ -133,14 +133,32 @@ async function updateMiniapp(id: string, data: MiniappFormData): Promise<ApiAnsw
     return mockMiniappApi.updateMiniapp(id, data);
   }
 
-  const requestData: UpdateMiniappRequest = {
-    title: data.title,
-    description: data.description,
-    url: data.url,
-    status: data.status,
-  };
+  const currentUserResponse = await getCurrentUser();
 
-  return customPatch<UpdateMiniappRequest, Miniapp>(getAdminMiniappPath(id), requestData);
+  if (currentUserResponse.isError || !currentUserResponse.data) {
+    return {
+      isError: true,
+      status: currentUserResponse.status,
+      errorMessage: currentUserResponse.errorMessage,
+    };
+  }
+
+  const role = currentUserResponse.data.role;
+  const requestData: UpdateMiniappRequest =
+    role === 'admin'
+      ? {
+          title: data.title,
+          description: data.description,
+          url: data.url,
+          status: data.status,
+        }
+      : {
+          title: data.title,
+          description: data.description,
+          url: data.url,
+        };
+
+  return customPatch<UpdateMiniappRequest, Miniapp>(getMiniappPath(role, id), requestData);
 }
 
 async function deleteMiniapp(id: string): Promise<ApiAnswer<void>> {
@@ -149,6 +167,30 @@ async function deleteMiniapp(id: string): Promise<ApiAnswer<void>> {
   }
 
   return customDelete<void>(getAdminMiniappPath(id));
+}
+
+async function publishMiniapp(id: string): Promise<ApiAnswer<Miniapp>> {
+  if (shouldUseMockMiniapps) {
+    return mockMiniappApi.publishMiniapp(id);
+  }
+
+  return customPost<void, Miniapp>(`${getAdminMiniappPath(id)}/publish`, undefined);
+}
+
+async function disableMiniapp(id: string): Promise<ApiAnswer<Miniapp>> {
+  if (shouldUseMockMiniapps) {
+    return mockMiniappApi.disableMiniapp(id);
+  }
+
+  return customPost<void, Miniapp>(`${getAdminMiniappPath(id)}/disable`, undefined);
+}
+
+async function enableMiniapp(id: string): Promise<ApiAnswer<Miniapp>> {
+  if (shouldUseMockMiniapps) {
+    return mockMiniappApi.enableMiniapp(id);
+  }
+
+  return customPost<void, Miniapp>(`${getAdminMiniappPath(id)}/enable`, undefined);
 }
 
 async function addFavorite(id: string): Promise<ApiAnswer<FavoriteResponse>> {
@@ -179,10 +221,13 @@ export const miniappApi = {
   addFavorite,
   createMiniapp,
   deleteMiniapp,
+  disableMiniapp,
+  enableMiniapp,
   getCurrentUser,
   getMiniappById,
   getMiniapps,
   launchMiniapp,
+  publishMiniapp,
   removeFavorite,
   updateMiniapp,
 };

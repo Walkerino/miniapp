@@ -43,14 +43,25 @@ export const MiniAppList = observer(() => {
 
   return (
     <MiniAppListView
+      hasMore={store.hasMore}
+      isAdmin={store.isAdmin}
+      isLoadingMore={store.isLoadingMore}
       items={store.items}
       onCreate={() => navigate(routesMasks.miniapps.create())}
-      onEdit={(id) => navigate(routesMasks.miniapps.edit(id))}
       onDelete={store.deleteMiniapps}
+      onLoadMore={store.loadNextPage}
       onPreview={store.getMiniappLaunchUrl}
       onLaunch={store.launchMiniapp}
-      onRename={store.renameMiniapp}
+      onStatusFilterChange={(status) =>
+        store.load({ status: status === 'all' ? undefined : status })
+      }
+      onUpdateDetails={store.updateMiniappDetails}
+      onStatusAction={store.updateStatus}
+      isStatusUpdating={store.isStatusUpdating}
       onToggleFavorite={store.toggleFavorite}
+      page={store.page}
+      pageCount={store.pageCount}
+      total={store.total}
     />
   );
 });

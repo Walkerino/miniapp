@@ -179,6 +179,109 @@ paths:
                 $ref: "#/components/schemas/User"
         "401":
           $ref: "#/components/responses/Unauthorized"
+    delete:
+      tags:
+        - Auth
+      summary: Delete own account
+      description: Deactivates the current user and revokes all refresh sessions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAccountRequest"
+      responses:
+        "204":
+          description: Account deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/me/name:
+    patch:
+      tags:
+        - Auth
+      summary: Change current user name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNameRequest"
+      responses:
+        "200":
+          description: User name updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/me/email:
+    patch:
+      tags:
+        - Auth
+      summary: Change current user email
+      description: Requires current password and revokes all refresh sessions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEmailRequest"
+      responses:
+        "200":
+          description: User email updated
+          headers:
+            Set-Cookie:
+              description: Expired refresh token cookie.
+              schema:
+                type: string
+                example: refresh_token=; HttpOnly; Secure; SameSite=Lax; Path=/api/auth; Max-Age=0
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/auth/me/password:
+    patch:
+      tags:
+        - Auth
+      summary: Change current user password
+      description: Requires current password and revokes all refresh sessions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePasswordRequest"
+      responses:
+        "200":
+          description: User password updated
+          headers:
+            Set-Cookie:
+              description: Expired refresh token cookie.
+              schema:
+                type: string
+                example: refresh_token=; HttpOnly; Secure; SameSite=Lax; Path=/api/auth; Max-Age=0
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /api/miniapps:
     get:
@@ -540,6 +643,33 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/admin/user:
+    post:
+      tags:
+        - Admin Users
+      summary: Get user by email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GetUserRequest"
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/admin/users/promote:
     post:
       tags:
@@ -773,6 +903,55 @@ components:
           example: user@example.com
         password:
           type: string
+          example: password123
+
+    UpdateNameRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Amir
+
+    UpdateEmailRequest:
+      type: object
+      required:
+        - email
+        - current_password
+      properties:
+        email:
+          type: string
+          format: email
+          example: new@example.com
+        current_password:
+          type: string
+          minLength: 6
+          example: password123
+
+    UpdatePasswordRequest:
+      type: object
+      required:
+        - current_password
+        - new_password
+      properties:
+        current_password:
+          type: string
+          minLength: 6
+          example: password123
+        new_password:
+          type: string
+          minLength: 6
+          example: newpass123
+
+    DeleteAccountRequest:
+      type: object
+      required:
+        - current_password
+      properties:
+        current_password:
+          type: string
+          minLength: 6
           example: password123
 
     AuthResponse:
@@ -1060,6 +1239,16 @@ components:
           type: string
           format: email
           example: newadmin@example.com
+
+    GetUserRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
 
     ErrorResponse:
       type: object
