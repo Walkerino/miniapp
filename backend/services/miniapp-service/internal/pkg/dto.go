@@ -35,6 +35,7 @@ type MiniappResponse struct {
 	Description   *string   `json:"description"`
 	URL           string    `json:"url"`
 	Status        string    `json:"status"`
+	RejectReason  *string   `json:"reject_reason"`
 	CreatedBy     string    `json:"created_by"`
 	UpdatedBy     *string   `json:"updated_by"`
 	LaunchesCount int       `json:"launches_count"`
@@ -48,6 +49,16 @@ type MiniappListResponse struct {
 	Page  int               `json:"page"`
 	Limit int               `json:"limit"`
 	Total int               `json:"total"`
+}
+
+type AdminMetricsResponse struct {
+	TotalMiniapps    int `json:"total_miniapps"`
+	ActiveMiniapps   int `json:"active_miniapps"`
+	PendingMiniapps  int `json:"pending_miniapps"`
+	RejectedMiniapps int `json:"rejected_miniapps"`
+	TotalLaunches    int `json:"total_launches"`
+	LaunchesToday    int `json:"launches_today"`
+	LaunchesThisWeek int `json:"launches_this_week"`
 }
 
 type LaunchMiniappResponse struct {

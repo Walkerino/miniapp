@@ -31,6 +31,9 @@ type MiniappRepository interface {
 	Get(id, userID uuid.UUID) (*models.Miniapp, error)
 	Update(app *models.Miniapp) error
 	SetStatus(id, userID uuid.UUID, status string) (*models.Miniapp, error)
+	SetStatusReason(id, userID uuid.UUID, status string, rejectReason *string) (*models.Miniapp, error)
+	DeletePending(id uuid.UUID) error
+	Metrics() (*models.AdminMetrics, error)
 	AddFavorite(userID, miniappID uuid.UUID) (time.Time, error)
 	RemoveFavorite(userID, miniappID uuid.UUID) error
 }
@@ -333,6 +336,43 @@ func (s *Service) SetStatus(user *pkg_dto.UserContext, id, status string) (*pkg_
 	return &resp, nil
 }
 
+func (s *Service) Reject(user *pkg_dto.UserContext, id string) error {
+	if err := requireAdmin(user); err != nil {
+		return err
+	}
+	userID, miniappID, err := parseUserAndMiniapp(user, id)
+	if err != nil {
+		return err
+	}
+	app, err := s.miniapps.Get(miniappID, userID)
+	if err != nil {
+		return mapRepoErr(err)
+	}
+	if app.Status != "pending" {
+		return ErrBadRequest
+	}
+	return mapRepoErr(s.miniapps.DeletePending(miniappID))
+}
+
+func (s *Service) AdminMetrics(user *pkg_dto.UserContext) (*pkg_dto.AdminMetricsResponse, error) {
+	if err := requireAdmin(user); err != nil {
+		return nil, err
+	}
+	metrics, err := s.miniapps.Metrics()
+	if err != nil {
+		return nil, err
+	}
+	return &pkg_dto.AdminMetricsResponse{
+		TotalMiniapps:    metrics.TotalMiniapps,
+		ActiveMiniapps:   metrics.ActiveMiniapps,
+		PendingMiniapps:  metrics.PendingMiniapps,
+		RejectedMiniapps: metrics.RejectedMiniapps,
+		TotalLaunches:    metrics.TotalLaunches,
+		LaunchesToday:    metrics.LaunchesToday,
+		LaunchesThisWeek: metrics.LaunchesThisWeek,
+	}, nil
+}
+
 func (s *Service) Session(launchToken string) (*pkg_dto.MiniappSessionContext, error) {
 	launchToken = strings.TrimSpace(launchToken)
 	if launchToken == "" {
@@ -438,7 +478,7 @@ func isPublicIP(ip net.IP) bool {
 
 func validStatus(status string) bool {
 	switch status {
-	case "pending", "active", "disabled", "deleted":
+	case "pending", "active", "disabled", "deleted", "rejected":
 		return true
 	default:
 		return false
@@ -499,6 +539,7 @@ func miniappResponse(app *models.Miniapp) pkg_dto.MiniappResponse {
 		Description:   app.Description,
 		URL:           app.URL,
 		Status:        app.Status,
+		RejectReason:  app.RejectReason,
 		CreatedBy:     app.CreatedBy.String(),
 		UpdatedBy:     updatedBy,
 		LaunchesCount: app.LaunchesCount,

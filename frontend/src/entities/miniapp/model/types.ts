@@ -18,6 +18,7 @@ export type Miniapp = {
   description: string | null;
   url: string;
   status: StatusType;
+  reject_reason?: string | null;
   created_by: string;
   updated_by: string | null;
   launches_count: number;

@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS miniapps (
     description TEXT,
     url TEXT NOT NULL,
     status VARCHAR(30) NOT NULL DEFAULT 'pending',
+    reject_reason TEXT,
     created_by UUID NOT NULL,
     updated_by UUID,
     created_at TIMESTAMP NOT NULL DEFAULT now(),

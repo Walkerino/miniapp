@@ -65,6 +65,7 @@ const statusVariants = {
   active: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   disabled: 'border-stone-200 bg-stone-100 text-stone-600',
   deleted: 'border-red-200 bg-red-50 text-red-700',
+  rejected: 'border-red-200 bg-red-50 text-red-700',
 } satisfies Record<MiniappCardData['status'], string>;
 
 const miniappCoverPaths = [
