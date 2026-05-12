@@ -47,6 +47,7 @@ import type { MiniappCardData, MiniappCategory } from 'entities/miniapp';
 import { cn } from 'shared/lib/utils';
 
 type MiniAppProps = {
+  creatorName: string;
   isAdmin: boolean;
   isSelectMode: boolean;
   isSelected: boolean;
@@ -107,6 +108,20 @@ function getMiniappCoverPath(id: string) {
   const hash = [...id].reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
   return miniappCoverPaths[hash % miniappCoverPaths.length];
+}
+
+function formatCreatedAt(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
 }
 
 function highlightCodeLine(line: string, lineIndex: number): ReactNode[] {
@@ -189,6 +204,7 @@ function SnippetBlock({
 }
 
 export const MiniApp = ({
+  creatorName,
   isAdmin,
   isSelectMode,
   isSelected,
@@ -407,6 +423,12 @@ export const MiniApp = ({
             <Badge className="mt-2 max-w-full truncate" variant="secondary">
               {miniapp.category}
             </Badge>
+            {isAdmin && (
+              <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
+                <p className="truncate">Creator: {creatorName}</p>
+                <p>Created: {formatCreatedAt(miniapp.created_at)}</p>
+              </div>
+            )}
           </div>
         </div>
         <CardAction>

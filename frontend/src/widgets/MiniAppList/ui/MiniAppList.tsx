@@ -55,6 +55,7 @@ export const MiniAppList = observer(() => {
       onUpdateDetails={store.updateMiniappDetails}
       onStatusAction={store.updateStatus}
       isStatusUpdating={store.isStatusUpdating}
+      getCreatorName={store.getCreatorName}
       onToggleFavorite={store.toggleFavorite}
       page={store.page}
       pageCount={store.pageCount}

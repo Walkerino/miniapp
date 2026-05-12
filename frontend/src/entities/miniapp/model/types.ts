@@ -57,7 +57,7 @@ export type FavoriteResponse = {
 
 export type MiniappCardData = Pick<
   Miniapp,
-  'id' | 'title' | 'description' | 'url' | 'category' | 'status' | 'is_favorite'
+  'id' | 'title' | 'description' | 'url' | 'category' | 'status' | 'is_favorite' | 'created_by' | 'created_at'
 >;
 
 export type MiniappListResponse = {

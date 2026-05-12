@@ -2,6 +2,7 @@ import { customGet, customPost } from 'api';
 import type { AuthUser } from 'entities/user';
 import type { Miniapp } from 'entities/miniapp';
 import type {
+  AdminAuditLogResponse,
   AdminMetricsResponse,
   AdminMiniappListResponse,
   AdminUserListResponse,
@@ -22,9 +23,9 @@ function withQuery(path: string, params: Record<string, string | number | undefi
 }
 
 export const adminApi = {
-  getUsers(search = '', limit = 25) {
+  getUsers(search = '', limit = 25, page = 1) {
     return customGet<AdminUserListResponse>(
-      withQuery('/api/admin/users', { page: 1, limit, search })
+      withQuery('/api/admin/users', { page, limit, search })
     );
   },
   promoteUser(email: string) {
@@ -43,6 +44,11 @@ export const adminApi = {
   getPendingMiniapps(limit = 50) {
     return customGet<AdminMiniappListResponse>(
       withQuery('/api/admin/miniapps', { page: 1, limit, status: 'pending' })
+    );
+  },
+  getAudit(page = 1, limit = 20) {
+    return customGet<AdminAuditLogResponse>(
+      withQuery('/api/admin/audit', { page, limit })
     );
   },
   publishMiniapp(id: string) {
