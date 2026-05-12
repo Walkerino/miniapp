@@ -10,7 +10,7 @@ info:
     - Пользователь регистрируется только как user.
     - Admin может быть создан вручную в БД или назначен другим admin.
     - User видит опубликованные miniapps и может предлагать новые miniapps.
-    - Admin управляет miniapps: publish, edit, disable, enable, delete.
+    - Admin управляет miniapps: publish, reject, edit, disable, enable, delete.
     - Запуск miniapp происходит через launch_token, который связывает user + miniapp.
     - Access JWT не передается внешнему miniapp.
 
@@ -563,6 +563,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Miniapp"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/admin/miniapps/{miniapp_id}/reject:
+    post:
+      tags:
+        - Admin Miniapps
+      summary: Reject pending miniapp
+      description: Admin отклоняет pending miniapp. После вызова pending miniapp удаляется.
+      parameters:
+        - $ref: "#/components/parameters/MiniappIdParam"
+      responses:
+        "204":
+          description: Pending miniapp rejected and deleted
+        "400":
+          description: Miniapp is not pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":

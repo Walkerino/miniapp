@@ -32,6 +32,7 @@ type MiniappRepository interface {
 	Update(app *models.Miniapp) error
 	SetStatus(id, userID uuid.UUID, status string) (*models.Miniapp, error)
 	SetStatusReason(id, userID uuid.UUID, status string, rejectReason *string) (*models.Miniapp, error)
+	DeletePending(id uuid.UUID) error
 	Metrics() (*models.AdminMetrics, error)
 	AddFavorite(userID, miniappID uuid.UUID) (time.Time, error)
 	RemoveFavorite(userID, miniappID uuid.UUID) error
@@ -335,24 +336,22 @@ func (s *Service) SetStatus(user *pkg_dto.UserContext, id, status string) (*pkg_
 	return &resp, nil
 }
 
-func (s *Service) Reject(user *pkg_dto.UserContext, id string, req pkg_dto.RejectMiniappRequest) (*pkg_dto.MiniappResponse, error) {
+func (s *Service) Reject(user *pkg_dto.UserContext, id string) error {
 	if err := requireAdmin(user); err != nil {
-		return nil, err
+		return err
 	}
 	userID, miniappID, err := parseUserAndMiniapp(user, id)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	reason := strings.TrimSpace(req.Reason)
-	if reason == "" {
-		return nil, ErrBadRequest
-	}
-	app, err := s.miniapps.SetStatusReason(miniappID, userID, "rejected", &reason)
+	app, err := s.miniapps.Get(miniappID, userID)
 	if err != nil {
-		return nil, mapRepoErr(err)
+		return mapRepoErr(err)
 	}
-	resp := miniappResponse(app)
-	return &resp, nil
+	if app.Status != "pending" {
+		return ErrBadRequest
+	}
+	return mapRepoErr(s.miniapps.DeletePending(miniappID))
 }
 
 func (s *Service) AdminMetrics(user *pkg_dto.UserContext) (*pkg_dto.AdminMetricsResponse, error) {
