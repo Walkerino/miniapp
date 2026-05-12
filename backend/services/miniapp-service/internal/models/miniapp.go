@@ -12,12 +12,23 @@ type Miniapp struct {
 	Description   *string
 	URL           string
 	Status        string
+	RejectReason  *string
 	CreatedBy     uuid.UUID
 	UpdatedBy     *uuid.UUID
 	LaunchesCount int
 	IsFavorite    bool
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+}
+
+type AdminMetrics struct {
+	TotalMiniapps    int
+	ActiveMiniapps   int
+	PendingMiniapps  int
+	RejectedMiniapps int
+	TotalLaunches    int
+	LaunchesToday    int
+	LaunchesThisWeek int
 }
 
 type LaunchToken struct {

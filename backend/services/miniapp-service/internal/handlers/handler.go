@@ -18,6 +18,8 @@ type Service interface {
 	AdminUpdate(user *pkg_dto.UserContext, id string, req pkg_dto.UpdateMiniappRequest) (*pkg_dto.MiniappResponse, error)
 	AdminDelete(user *pkg_dto.UserContext, id string) error
 	SetStatus(user *pkg_dto.UserContext, id, status string) (*pkg_dto.MiniappResponse, error)
+	Reject(user *pkg_dto.UserContext, id string, req pkg_dto.RejectMiniappRequest) (*pkg_dto.MiniappResponse, error)
+	AdminMetrics(user *pkg_dto.UserContext) (*pkg_dto.AdminMetricsResponse, error)
 	Session(launchToken string) (*pkg_dto.MiniappSessionContext, error)
 }
 

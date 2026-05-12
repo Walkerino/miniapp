@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 
-import { LayoutDashboard, LogOut, PanelsTopLeft, User } from 'lucide-react';
+import { LayoutDashboard, LogOut, PanelsTopLeft, ShieldCheck, User } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { Avatar, AvatarFallback } from 'components/ui/avatar';
@@ -25,6 +25,7 @@ const sidebarItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: routesMasks.main.create() },
   { icon: PanelsTopLeft, label: 'MiniApps', href: routesMasks.miniapps.list() },
   { icon: User, label: 'Profile', href: routesMasks.profile.create() },
+  { icon: ShieldCheck, label: 'Admin', href: routesMasks.admin.create(), adminOnly: true },
 ];
 
 type DashboardLayoutProps = {
@@ -78,7 +79,7 @@ function AppSidebar({ userName }: { userName: string }) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {sidebarItems.map((item) => {
+              {sidebarItems.filter((item) => !item.adminOnly || sessionStore.role === 'admin').map((item) => {
                 const isActive =
                   item.href === routesMasks.main.create()
                     ? location.pathname === routesMasks.main.create()

@@ -18,6 +18,7 @@ import {
   PanelsTopLeft,
   Plus,
   Rocket,
+  ShieldCheck,
   Trophy,
   Trash2,
   User,
@@ -86,9 +87,10 @@ const sidebarItems = [
   { icon: LayoutDashboard, label: 'Dashboard', to: routesMasks.main.create() },
   { icon: PanelsTopLeft, label: 'MiniApps', to: routesMasks.miniapps.list() },
   { icon: User, label: 'Profile', to: routesMasks.profile.create() },
+  { icon: ShieldCheck, label: 'Admin', to: routesMasks.admin.create(), adminOnly: true },
 ];
 
-type VisibleStatus = 'pending' | 'active' | 'disabled';
+type VisibleStatus = 'pending' | 'active' | 'disabled' | 'rejected';
 type ProjectRow = {
   id: string;
   logo: string;
@@ -107,6 +109,7 @@ const statusVariants = {
   pending: 'border-amber-200 bg-amber-50 text-amber-700',
   active: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   disabled: 'border-stone-200 bg-stone-100 text-stone-600',
+  rejected: 'border-red-200 bg-red-50 text-red-700',
 } satisfies Record<VisibleStatus, string>;
 
 const ROWS_PER_PAGE = 10;
@@ -118,6 +121,10 @@ function getRowColor(status: VisibleStatus) {
 
   if (status === 'pending') {
     return 'bg-amber-500 text-white';
+  }
+
+  if (status === 'rejected') {
+    return 'bg-red-600 text-white';
   }
 
   return 'bg-stone-500 text-white';
@@ -180,7 +187,7 @@ function AppSidebar({ userName, onLogout }: AppSidebarProps) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {sidebarItems.map((item) => (
+              {sidebarItems.filter((item) => !item.adminOnly || sessionStore.role === 'admin').map((item) => (
                 <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton asChild isActive={location.pathname === item.to} tooltip={item.label}>
                     <Link to={item.to}>
