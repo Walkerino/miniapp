@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import {
+  BarChart3,
   Check,
   MoreHorizontal,
   Rocket,
@@ -14,7 +15,7 @@ import {
 import { Avatar, AvatarFallback } from 'components/ui/avatar';
 import { Badge } from 'components/ui/badge';
 import { Button } from 'components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from 'components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from 'components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -39,8 +40,57 @@ import type { AuthUser } from 'entities/user';
 import { routesMasks } from 'shared/config/routesMasks';
 import { DashboardLayout } from 'widgets/DashboardLayout';
 
+const createdChartDurationOptions = [3, 7, 14, 21, 30] as const;
+
+type CreatedChartDuration = (typeof createdChartDurationOptions)[number];
+
 function formatMetric(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
+}
+
+function formatDayLabel(date: Date) {
+  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+}
+
+function getDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function getMiniappsCreatedByDay(miniapps: Miniapp[], duration: CreatedChartDuration) {
+  const today = new Date();
+  const days = Array.from({ length: duration }, (_, index) => {
+    const date = new Date(today);
+
+    date.setHours(0, 0, 0, 0);
+    date.setDate(today.getDate() - (duration - 1 - index));
+
+    return {
+      key: getDateKey(date),
+      label: formatDayLabel(date),
+      value: 0,
+    };
+  });
+  const dayIndexByKey = new Map(days.map((day, index) => [day.key, index]));
+
+  miniapps.forEach((miniapp) => {
+    const createdAt = new Date(miniapp.created_at);
+
+    if (Number.isNaN(createdAt.getTime())) {
+      return;
+    }
+
+    const dayIndex = dayIndexByKey.get(getDateKey(createdAt));
+
+    if (dayIndex !== undefined) {
+      days[dayIndex].value += 1;
+    }
+  });
+
+  return days;
 }
 
 function getInitials(name: string | null, email: string) {
@@ -68,6 +118,8 @@ export function AdminPage() {
   const [usersTotal, setUsersTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [metrics, setMetrics] = useState<AdminMetricsResponse | null>(null);
+  const [miniapps, setMiniapps] = useState<Miniapp[]>([]);
+  const [createdChartDuration, setCreatedChartDuration] = useState<CreatedChartDuration>(7);
   const [pendingMiniapps, setPendingMiniapps] = useState<Miniapp[]>([]);
   const [openUserMenuId, setOpenUserMenuId] = useState<string | null>(null);
   const [rejectMiniapp, setRejectMiniapp] = useState<Miniapp | null>(null);
@@ -80,13 +132,19 @@ export function AdminPage() {
     setIsLoading(true);
     setError(null);
 
-    const [usersResponse, metricsResponse, pendingResponse] = await Promise.all([
+    const [usersResponse, metricsResponse, miniappsResponse, pendingResponse] = await Promise.all([
       adminApi.getUsers(search, 100),
       adminApi.getMetrics(),
+      adminApi.getMiniapps(),
       adminApi.getPendingMiniapps(),
     ]);
 
-    if (usersResponse.isError || metricsResponse.isError || pendingResponse.isError) {
+    if (
+      usersResponse.isError ||
+      metricsResponse.isError ||
+      miniappsResponse.isError ||
+      pendingResponse.isError
+    ) {
       setError('Failed to load admin dashboard data.');
       setIsLoading(false);
       return;
@@ -95,6 +153,7 @@ export function AdminPage() {
     setUsers(usersResponse.data?.items ?? []);
     setUsersTotal(usersResponse.data?.total ?? 0);
     setMetrics(metricsResponse.data ?? null);
+    setMiniapps(miniappsResponse.data?.items ?? []);
     setPendingMiniapps(pendingResponse.data?.items ?? []);
     setIsLoading(false);
   }, [search]);
@@ -118,6 +177,12 @@ export function AdminPage() {
     ],
     [metrics, usersTotal]
   );
+  const createdByDay = useMemo(
+    () => getMiniappsCreatedByDay(miniapps, createdChartDuration),
+    [createdChartDuration, miniapps]
+  );
+  const maxCreatedByDay = Math.max(...createdByDay.map((day) => day.value), 1);
+  const createdInSelectedPeriod = createdByDay.reduce((sum, day) => sum + day.value, 0);
 
   if (sessionStore.role !== 'admin') {
     return <Navigate to={routesMasks.main.create()} replace />;
@@ -181,16 +246,12 @@ export function AdminPage() {
 
   return (
     <DashboardLayout userName={sessionStore.fullName}>
-      <main className="min-h-svh bg-stone-50 p-4 md:p-6">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-          <header className="flex flex-col gap-2">
+      <main className="dashboard-shell">
+        <div className="flex w-full flex-col gap-6">
+          <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-md bg-stone-900 text-white">
-                <ShieldCheck className="size-5" />
-              </div>
               <div>
-                <h1 className="text-2xl font-semibold tracking-normal text-stone-950">Admin panel</h1>
-                <p className="text-sm text-stone-500">Users, moderation, and platform metrics.</p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-normal">Admin panel</h1>
               </div>
             </div>
           </header>
@@ -203,7 +264,7 @@ export function AdminPage() {
 
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {metricCards.map((metric) => (
-              <Card key={metric.label} className="rounded-md py-4">
+              <Card key={metric.label} className="rounded-lg py-4 shadow-none">
                 <CardContent className="flex items-center justify-between gap-4 px-4">
                   <div>
                     <p className="text-sm text-muted-foreground">{metric.label}</p>
@@ -211,7 +272,7 @@ export function AdminPage() {
                       {isLoading ? '-' : formatMetric(metric.value)}
                     </p>
                   </div>
-                  <div className="flex size-9 items-center justify-center rounded-md bg-stone-100 text-stone-700">
+                  <div className="flex size-9 items-center justify-center rounded-md border bg-stone-50 text-stone-700">
                     <metric.icon className="size-4" />
                   </div>
                 </CardContent>
@@ -219,10 +280,80 @@ export function AdminPage() {
             ))}
           </section>
 
+          <Card className="rounded-lg shadow-none">
+            <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle>MiniApps created by day</CardTitle>
+              </div>
+              <div className="flex flex-col gap-2 sm:items-end">
+                <div className="flex flex-wrap gap-1 rounded-md border bg-stone-50 p-1">
+                  {createdChartDurationOptions.map((duration) => (
+                    <Button
+                      className="h-8 px-3 text-xs"
+                      key={duration}
+                      onClick={() => setCreatedChartDuration(duration)}
+                      type="button"
+                      variant={createdChartDuration === duration ? 'default' : 'ghost'}
+                    >
+                      {duration}d
+                    </Button>
+                  ))}
+                </div>
+                
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 lg:grid-cols-[180px_1fr] lg:items-end">
+                <div>
+                  <div className="flex size-10 items-center justify-center rounded-md border bg-stone-50 text-stone-700">
+                    <BarChart3 className="size-5" />
+                  </div>
+                  <p className="mt-4 text-3xl font-semibold tracking-normal">
+                    {isLoading ? '-' : formatMetric(createdInSelectedPeriod)}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Created in {createdChartDuration} days
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <div
+                    className="grid h-52 min-w-full items-end gap-3 border-b border-border px-1 sm:gap-4"
+                    style={{
+                      gridTemplateColumns: `repeat(${createdChartDuration}, minmax(28px, 1fr))`,
+                    }}
+                  >
+                    {createdByDay.map((day) => (
+                      <div className="flex h-full min-w-0 flex-col justify-end gap-2" key={day.key}>
+                        <div className="flex flex-1 items-end">
+                          <div
+                            aria-label={`${day.label}: ${day.value}`}
+                            className="w-full rounded-t-md border border-sky-200 bg-sky-50 text-sky-700"
+                            style={{
+                              height: isLoading
+                                ? '0%'
+                                : `${Math.max((day.value / maxCreatedByDay) * 100, day.value > 0 ? 12 : 0)}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="grid gap-1 text-center text-xs text-muted-foreground">
+                          <span className="truncate">{day.label}</span>
+                          <span className="font-medium text-foreground">
+                            {isLoading ? '-' : day.value}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-            <Card className="rounded-md">
+            <Card className="rounded-lg shadow-none">
               <CardHeader>
                 <CardTitle>User roles</CardTitle>
+                <CardDescription>Search users and manage administrator access.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 <div className="relative">
@@ -235,22 +366,31 @@ export function AdminPage() {
                   />
                 </div>
 
-                <div className="max-h-[420px] overflow-y-auto rounded-md border bg-white">
+                <div className="max-h-[420px] overflow-y-auto rounded-md border bg-card">
                   {users.map((user) => (
                     <div
                       key={user.id}
-                      className="flex items-center gap-3 border-b px-3 py-3 last:border-b-0"
+                      className="flex flex-wrap items-center gap-3 border-b px-3 py-3 transition-colors last:border-b-0 hover:bg-muted/45"
                     >
                       <Avatar className="size-10">
-                        <AvatarFallback>{getInitials(user.name, user.email)}</AvatarFallback>
+                        <AvatarFallback className="bg-sky-50 text-sky-700">
+                          {getInitials(user.name, user.email)}
+                        </AvatarFallback>
                       </Avatar>
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-[150px] flex-1">
                         <p className="truncate text-sm font-medium text-stone-950">
                           {user.name || 'Unnamed user'}
                         </p>
                         <p className="truncate text-xs text-stone-500">{user.email}</p>
                       </div>
-                      <Badge variant="outline" className="capitalize">
+                      <Badge
+                        variant="outline"
+                        className={
+                          user.role === 'admin'
+                            ? 'border-red-200 bg-red-50 text-red-700 capitalize'
+                            : 'border-stone-200 bg-stone-50 text-stone-700 capitalize'
+                        }
+                      >
                         {user.role}
                       </Badge>
                       <div className="relative">
@@ -270,7 +410,7 @@ export function AdminPage() {
                             <button
                               type="button"
                               disabled={user.role === 'admin' || isActionLoading}
-                              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-sm hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-sm text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
                               onClick={() => void promoteUser(user)}
                             >
                               <ShieldCheck className="size-4" />
@@ -291,13 +431,14 @@ export function AdminPage() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-md">
+            <Card className="rounded-lg shadow-none">
               <CardHeader>
                 <CardTitle>Pending moderation</CardTitle>
+                <CardDescription>Review miniApps submitted by users before publishing.</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-hidden rounded-md border bg-white">
-                  <Table>
+                <div className="overflow-x-auto rounded-md border bg-card">
+                  <Table className="min-w-[760px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>MiniApp Name</TableHead>
@@ -313,7 +454,7 @@ export function AdminPage() {
                           <TableCell>{getOwnerName(users, miniapp.created_by)}</TableCell>
                           <TableCell>
                             <a
-                              className="block max-w-[360px] truncate text-sm text-stone-600 underline-offset-4 hover:underline"
+                              className="block max-w-[360px] truncate text-sm text-sky-700 underline-offset-4 hover:underline"
                               href={miniapp.url}
                               target="_blank"
                               rel="noreferrer"
@@ -326,6 +467,7 @@ export function AdminPage() {
                               <Button
                                 type="button"
                                 size="sm"
+                                className="bg-emerald-600 text-white hover:bg-emerald-700"
                                 disabled={isActionLoading}
                                 onClick={() => void publishMiniapp(miniapp)}
                               >
