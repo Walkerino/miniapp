@@ -44,12 +44,14 @@ export const MiniAppList = observer(() => {
   return (
     <MiniAppListView
       items={store.items}
+      isAdmin={store.isAdmin}
       onCreate={() => navigate(routesMasks.miniapps.create())}
-      onEdit={(id) => navigate(routesMasks.miniapps.edit(id))}
       onDelete={store.deleteMiniapps}
       onPreview={store.getMiniappLaunchUrl}
       onLaunch={store.launchMiniapp}
-      onRename={store.renameMiniapp}
+      onUpdateDetails={store.updateMiniappDetails}
+      onStatusAction={store.updateStatus}
+      isStatusUpdating={store.isStatusUpdating}
       onToggleFavorite={store.toggleFavorite}
     />
   );

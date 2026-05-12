@@ -25,23 +25,27 @@ type StatusFilter = 'all' | 'pending' | 'active' | 'disabled';
 
 type MiniAppListViewProps = {
   items: MiniappCardData[];
+  isAdmin: boolean;
   onCreate: () => void;
   onDelete: (ids: string[]) => void | Promise<void>;
-  onEdit: (id: string) => void;
   onPreview: (id: string) => string | null | Promise<string | null>;
   onLaunch: (id: string) => void | Promise<void>;
-  onRename: (id: string, title: string, description: string) => void | Promise<void>;
+  onUpdateDetails: (id: string, title: string, description: string, url: string) => void | Promise<void>;
+  onStatusAction: (id: string, action: 'publish' | 'disable' | 'enable') => void | Promise<void>;
+  isStatusUpdating: (id: string) => boolean;
   onToggleFavorite: (id: string) => void | Promise<void>;
 };
 
 export function MiniAppListView({
   items,
+  isAdmin,
   onCreate,
   onDelete,
-  onEdit,
   onPreview,
   onLaunch,
-  onRename,
+  onUpdateDetails,
+  onStatusAction,
+  isStatusUpdating,
   onToggleFavorite,
 }: MiniAppListViewProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -143,12 +147,14 @@ export function MiniAppListView({
                 key={miniapp.id}
                 isSelectMode={isSelectMode}
                 isSelected={selectedIds.has(miniapp.id)}
+                isAdmin={isAdmin}
+                isStatusUpdating={isStatusUpdating(miniapp.id)}
                 miniapp={miniapp}
-                onEdit={() => onEdit(miniapp.id)}
                 onLaunch={onLaunch}
                 onPreview={onPreview}
-                onRename={onRename}
+                onUpdateDetails={onUpdateDetails}
                 onSelect={(checked) => toggleItemSelection(miniapp.id, checked)}
+                onStatusAction={onStatusAction}
                 onToggleFavorite={onToggleFavorite}
               />
             ))
