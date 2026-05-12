@@ -6,6 +6,7 @@ import styles from './styles.module.css';
 const statusOptions: StatusType[] = ['pending', 'active', 'disabled', 'deleted'];
 
 type MiniappEditorFormProps = {
+  canChangeStatus: boolean;
   canSubmit: boolean;
   form: MiniappFormData;
   isCreateMode: boolean;
@@ -20,6 +21,7 @@ type MiniappEditorFormProps = {
 };
 
 export function MiniappEditorForm({
+  canChangeStatus,
   canSubmit,
   form,
   isCreateMode,
@@ -75,19 +77,21 @@ export function MiniappEditorForm({
           />
         </label>
 
-        <label className={styles.field}>
-          <span>Status</span>
-          <select
-            value={form.status}
-            onChange={(event) => onStatusChange(event.target.value as StatusType)}
-          >
-            {statusOptions.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </label>
+        {canChangeStatus && (
+          <label className={styles.field}>
+            <span>Status</span>
+            <select
+              value={form.status}
+              onChange={(event) => onStatusChange(event.target.value as StatusType)}
+            >
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <button className={styles.submitButton} type="submit" disabled={!canSubmit}>
           {isSaving ? 'Saving...' : 'Save'}

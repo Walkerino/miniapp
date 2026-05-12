@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AppWindow, Code2, Copy, ExternalLink, Heart, Info, Pencil } from 'lucide-react';
 
@@ -23,8 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from 'components/ui/dialog';
-import { Input } from 'components/ui/input';
-import { Label } from 'components/ui/label';
+import { sessionStore } from 'entities/session';
 import type { MiniappCardData } from 'entities/miniapp';
 import { cn } from 'shared/lib/utils';
 
@@ -35,7 +34,6 @@ type MiniAppProps = {
   onEdit: () => void;
   onLaunch: (id: string) => void | Promise<void>;
   onPreview: (id: string) => string | null | Promise<string | null>;
-  onRename: (id: string, title: string, description: string) => void | Promise<void>;
   onSelect: (checked: boolean) => void;
   onToggleFavorite: (id: string) => void | Promise<void>;
 };
@@ -46,6 +44,13 @@ const statusVariants = {
   disabled: 'border-stone-200 bg-stone-100 text-stone-600',
   deleted: 'border-red-200 bg-red-50 text-red-700',
 } satisfies Record<MiniappCardData['status'], string>;
+
+const miniappContextMessageTypes = new Set([
+  'MINIAPP_READY',
+  'MINIAPP_CONTEXT_REQUESTED',
+  'miniapp:ready',
+  'miniapp:context-requested',
+]);
 
 function escapeAttribute(value: string) {
   return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;');
@@ -58,21 +63,17 @@ export const MiniApp = ({
   onEdit,
   onLaunch,
   onPreview,
-  onRename,
   onSelect,
   onToggleFavorite,
 }: MiniAppProps) => {
+  const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [renameForm, setRenameForm] = useState({
-    title: miniapp.title,
-    description: miniapp.description ?? '',
-  });
+  const isActive = miniapp.status === 'active';
 
   const defaultIframeCode = useMemo(() => {
     return `<iframe
@@ -100,6 +101,88 @@ export const MiniApp = ({
   const [webviewCodeOverride, setWebviewCodeOverride] = useState<string | null>(null);
   const iframeCode = iframeCodeOverride ?? defaultIframeCode;
   const webviewCode = webviewCodeOverride ?? defaultWebviewCode;
+  function getHostContext() {
+    const user = sessionStore.user;
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        is_active: user.is_active,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+      },
+      miniapp: {
+        id: miniapp.id,
+        title: miniapp.title,
+      },
+      expires_at: null,
+    };
+  }
+
+  function postContextToPreview() {
+    const context = getHostContext();
+
+    if (!previewIframeRef.current?.contentWindow || !context) {
+      return;
+    }
+
+    previewIframeRef.current.contentWindow.postMessage(
+      {
+        type: 'MINIAPP_CONTEXT',
+        payload: context,
+      },
+      '*'
+    );
+  }
+
+  useEffect(() => {
+    if (!isPreviewOpen || !previewUrl) {
+      return undefined;
+    }
+
+    function handleMessage(event: MessageEvent) {
+      const message = event.data;
+      const isPreviewSource =
+        event.source === previewIframeRef.current?.contentWindow ||
+        message?.source === 'miniapp-platform-widget';
+
+      if (!isPreviewSource) {
+        return;
+      }
+
+      if (!message || typeof message !== 'object') {
+        return;
+      }
+
+      if (miniappContextMessageTypes.has(String(message.type))) {
+        postContextToPreview();
+      }
+    }
+
+    window.addEventListener('message', handleMessage);
+
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isPreviewOpen, previewUrl]);
+
+  useEffect(() => {
+    if (!isPreviewOpen || !previewUrl) {
+      return undefined;
+    }
+
+    const retryDelays = [0, 100, 300, 700, 1200, 2000];
+    const timers = retryDelays.map((delay) =>
+      window.setTimeout(postContextToPreview, delay)
+    );
+
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [isPreviewOpen, previewUrl]);
 
   function launchMiniapp() {
     void onLaunch(miniapp.id);
@@ -130,20 +213,6 @@ export const MiniApp = ({
   async function copyCode(code: string) {
     await navigator.clipboard.writeText(code);
     setIsCopied(true);
-  }
-
-  function saveRename(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const title = renameForm.title.trim();
-    const description = renameForm.description.trim();
-
-    if (!title) {
-      return;
-    }
-
-    void onRename(miniapp.id, title, description);
-    setIsRenameOpen(false);
   }
 
   return (
@@ -180,67 +249,69 @@ export const MiniApp = ({
 
       <CardFooter className="flex-wrap justify-between gap-2 border-t pt-4">
         <div className="flex gap-1">
-          <Dialog open={isInfoOpen} onOpenChange={setIsInfoOpen}>
-            <DialogTrigger asChild>
-              <Button aria-label="Open info" size="icon-sm" type="button" variant="ghost">
-                <Info />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>{miniapp.title}</DialogTitle>
-                <DialogDescription>
-                  {miniapp.description || 'Embed snippets for this miniapp.'}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">iframe</span>
-                    <Button size="sm" type="button" variant="outline" onClick={() => void copyCode(iframeCode)}>
-                      <Copy />
-                      Copy
-                    </Button>
-                  </div>
-                  <textarea
-                    className="min-h-24 resize-y rounded-md border bg-muted/40 p-3 font-mono text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                    value={iframeCode}
-                    onChange={(event) => {
-                      setIframeCodeOverride(event.target.value);
-                      setIsCopied(false);
-                    }}
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">webview</span>
-                    <Button size="sm" type="button" variant="outline" onClick={() => void copyCode(webviewCode)}>
-                      <Copy />
-                      Copy
-                    </Button>
-                  </div>
-                  <textarea
-                    className="min-h-20 resize-y rounded-md border bg-muted/40 p-3 font-mono text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                    value={webviewCode}
-                    onChange={(event) => {
-                      setWebviewCodeOverride(event.target.value);
-                      setIsCopied(false);
-                    }}
-                  />
-                </div>
-              </div>
-
-              <DialogFooter className="items-center sm:justify-between">
-                <p className="truncate text-sm text-muted-foreground">{isCopied ? 'Copied' : miniapp.url}</p>
-                <Button type="button" onClick={launchMiniapp}>
-                  <ExternalLink />
-                  Launch
+          {isActive && (
+            <Dialog open={isInfoOpen} onOpenChange={setIsInfoOpen}>
+              <DialogTrigger asChild>
+                <Button aria-label="Open info" size="icon-sm" type="button" variant="ghost">
+                  <Info />
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>{miniapp.title}</DialogTitle>
+                  <DialogDescription>
+                    {miniapp.description || 'Embed snippets for this miniapp.'}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium">iframe</span>
+                      <Button size="sm" type="button" variant="outline" onClick={() => void copyCode(iframeCode)}>
+                        <Copy />
+                        Copy
+                      </Button>
+                    </div>
+                    <textarea
+                      className="min-h-24 resize-y rounded-md border bg-muted/40 p-3 font-mono text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      value={iframeCode}
+                      onChange={(event) => {
+                        setIframeCodeOverride(event.target.value);
+                        setIsCopied(false);
+                      }}
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium">webview</span>
+                      <Button size="sm" type="button" variant="outline" onClick={() => void copyCode(webviewCode)}>
+                        <Copy />
+                        Copy
+                      </Button>
+                    </div>
+                    <textarea
+                      className="min-h-20 resize-y rounded-md border bg-muted/40 p-3 font-mono text-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      value={webviewCode}
+                      onChange={(event) => {
+                        setWebviewCodeOverride(event.target.value);
+                        setIsCopied(false);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <DialogFooter className="items-center sm:justify-between">
+                  <p className="truncate text-sm text-muted-foreground">{isCopied ? 'Copied' : miniapp.url}</p>
+                  <Button type="button" onClick={launchMiniapp}>
+                    <ExternalLink />
+                    Launch
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
 
           <Button
             aria-label={miniapp.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
@@ -254,121 +325,73 @@ export const MiniApp = ({
         </div>
 
         <div className="flex flex-wrap justify-end gap-1">
-          <Dialog
-            open={isPreviewOpen}
-            onOpenChange={(open) => {
-              setIsPreviewOpen(open);
+          {isActive && (
+            <>
+              <Dialog
+                open={isPreviewOpen}
+                onOpenChange={(open) => {
+                  setIsPreviewOpen(open);
 
-              if (!open) {
-                setPreviewUrl(null);
-                setPreviewError(null);
-                setIsPreviewLoading(false);
-              }
-            }}
-          >
-            <Button size="sm" type="button" variant="outline" onClick={() => void previewMiniapp()}>
-              <AppWindow />
-              Preview
-            </Button>
-            <DialogContent className="max-h-[calc(100svh-2rem)] gap-0 p-0 sm:max-w-6xl">
-              <DialogHeader className="px-6 pb-4 pt-6">
-                <DialogTitle>{miniapp.title}</DialogTitle>
-                <DialogDescription>Preview runs through launch URL with a temporary token.</DialogDescription>
-              </DialogHeader>
-
-              <div className="border-y bg-muted/30">
-                {isPreviewLoading && (
-                  <div className="flex h-[min(720px,calc(100svh-13rem))] items-center justify-center text-sm text-muted-foreground">
-                    Preparing preview...
-                  </div>
-                )}
-
-                {previewError && (
-                  <div className="flex h-[min(720px,calc(100svh-13rem))] items-center justify-center px-6 text-center text-sm text-destructive">
-                    {previewError}
-                  </div>
-                )}
-
-                {previewUrl && !isPreviewLoading && !previewError && (
-                  <iframe
-                    className="block h-[min(720px,calc(100svh-13rem))] w-full bg-background"
-                    src={previewUrl}
-                    title={miniapp.title}
-                    sandbox="allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
-                  />
-                )}
-              </div>
-
-              <DialogFooter className="items-center px-6 pb-6 pt-4 sm:justify-between">
-                <p className="max-w-full truncate text-sm text-muted-foreground">
-                  {previewUrl ?? miniapp.url}
-                </p>
-                <Button disabled={!previewUrl} type="button" variant="outline" onClick={launchMiniapp}>
-                  <ExternalLink />
-                  Open tab
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button aria-label="Launch miniapp" size="icon-sm" type="button" variant="ghost" onClick={launchMiniapp}>
-            <ExternalLink />
-          </Button>
-          <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
-            <DialogTrigger asChild>
-              <Button
-                aria-label="Rename miniapp"
-                size="icon-sm"
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  setRenameForm({
-                    title: miniapp.title,
-                    description: miniapp.description ?? '',
-                  })
-                }
+                  if (!open) {
+                    setPreviewUrl(null);
+                    setPreviewError(null);
+                    setIsPreviewLoading(false);
+                  }
+                }}
               >
-                <Pencil />
+                <Button size="sm" type="button" variant="outline" onClick={() => void previewMiniapp()}>
+                  <AppWindow />
+                  Preview
+                </Button>
+                <DialogContent className="max-h-[calc(100svh-2rem)] w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-6xl">
+                  <DialogHeader className="min-w-0 px-6 pb-4 pt-6">
+                    <DialogTitle>{miniapp.title}</DialogTitle>
+                    <DialogDescription>Preview runs through launch URL with a temporary token.</DialogDescription>
+                  </DialogHeader>
+
+                  <div className="min-w-0 border-y bg-muted/30">
+                    {isPreviewLoading && (
+                      <div className="flex h-[min(720px,calc(100svh-13rem))] items-center justify-center text-sm text-muted-foreground">
+                        Preparing preview...
+                      </div>
+                    )}
+
+                    {previewError && (
+                      <div className="flex h-[min(720px,calc(100svh-13rem))] items-center justify-center px-6 text-center text-sm text-destructive">
+                        {previewError}
+                      </div>
+                    )}
+
+                    {previewUrl && !isPreviewLoading && !previewError && (
+                      <iframe
+                        ref={previewIframeRef}
+                        className="block h-[min(720px,calc(100svh-13rem))] w-full max-w-full bg-background"
+                        src={previewUrl}
+                        title={miniapp.title}
+                        onLoad={postContextToPreview}
+                        sandbox="allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+                      />
+                    )}
+                  </div>
+
+                  <DialogFooter className="min-w-0 items-center px-6 pb-6 pt-4 sm:justify-between">
+                    <p className="min-w-0 max-w-full flex-1 truncate text-sm text-muted-foreground">
+                      {previewUrl ?? miniapp.url}
+                    </p>
+                    <Button disabled={!previewUrl} type="button" variant="outline" onClick={launchMiniapp}>
+                      <ExternalLink />
+                      Open tab
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Button aria-label="Launch miniapp" size="icon-sm" type="button" variant="ghost" onClick={launchMiniapp}>
+                <ExternalLink />
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <form className="grid gap-5" onSubmit={saveRename}>
-                <DialogHeader>
-                  <DialogTitle>Rename MiniApp</DialogTitle>
-                  <DialogDescription>Update the name and description for this miniapp.</DialogDescription>
-                </DialogHeader>
-
-                <div className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor={`rename-title-${miniapp.id}`}>App name</Label>
-                    <Input
-                      id={`rename-title-${miniapp.id}`}
-                      onChange={(event) =>
-                        setRenameForm((current) => ({ ...current, title: event.target.value }))
-                      }
-                      required
-                      value={renameForm.title}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor={`rename-description-${miniapp.id}`}>Description</Label>
-                    <Input
-                      id={`rename-description-${miniapp.id}`}
-                      onChange={(event) =>
-                        setRenameForm((current) => ({ ...current, description: event.target.value }))
-                      }
-                      value={renameForm.description}
-                    />
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button type="submit">Save</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-          <Button aria-label="Edit miniapp embed" size="icon-sm" type="button" variant="ghost" onClick={onEdit}>
-            <Code2 />
+            </>
+          )}
+          <Button aria-label="Edit miniapp" size="icon-sm" type="button" variant="ghost" onClick={onEdit}>
+            <Pencil />
           </Button>
         </div>
       </CardFooter>

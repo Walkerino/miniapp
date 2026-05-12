@@ -15,7 +15,6 @@ import {
   LayoutDashboard,
   LogOut,
   Plus,
-  Settings,
   Trash2,
   User,
 } from 'lucide-react';
@@ -104,7 +103,7 @@ const statusVariants = {
   disabled: 'border-stone-200 bg-stone-100 text-stone-600',
 } satisfies Record<VisibleStatus, string>;
 
-const ROWS_PER_PAGE = 4;
+const ROWS_PER_PAGE = 10;
 
 function getRowColor(status: VisibleStatus) {
   if (status === 'active') {
@@ -261,26 +260,22 @@ function MiniAppsChart({ rows }: MiniAppsChartProps) {
 }
 
 type ProjectsTableProps = {
+  isAdmin: boolean;
   onReload: () => Promise<void>;
   rows: VisibleProjectRow[];
   setRows: Dispatch<SetStateAction<VisibleProjectRow[]>>;
 };
 
-function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
+function ProjectsTable({ isAdmin, onReload, rows, setRows }: ProjectsTableProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedTitles, setSelectedTitles] = useState<Set<string>>(() => new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newMiniApp, setNewMiniApp] = useState({
     title: '',
     description: '',
     appUrl: '',
   });
-  const [renameMiniApp, setRenameMiniApp] = useState<{
-    originalTitle: string;
-    title: string;
-    description: string;
-  } | null>(null);
   const [settingsMiniApp, setSettingsMiniApp] = useState<{
     title: string;
     appUrl: string;
@@ -293,16 +288,16 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
   const safeCurrentPage = Math.min(currentPage, pageCount);
   const pageStart = (safeCurrentPage - 1) * ROWS_PER_PAGE;
   const pageRows = filteredRows.slice(pageStart, pageStart + ROWS_PER_PAGE);
-  const selectedCount = selectedTitles.size;
+  const selectedCount = selectedIds.size;
 
-  const toggleRowSelection = (title: string, checked: boolean | 'indeterminate') => {
-    setSelectedTitles((current) => {
+  const toggleRowSelection = (id: string, checked: boolean | 'indeterminate') => {
+    setSelectedIds((current) => {
       const next = new Set(current);
 
       if (checked === true) {
-        next.add(title);
+        next.add(id);
       } else {
-        next.delete(title);
+        next.delete(id);
       }
 
       return next;
@@ -311,7 +306,7 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
 
   const deleteSelectedRows = () => {
     setRows((current) => {
-      const next = current.filter((row) => !selectedTitles.has(row.title));
+      const next = current.filter((row) => !selectedIds.has(row.id));
       const nextFilteredRows =
         statusFilter === 'all'
           ? next
@@ -322,7 +317,7 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
 
       return next;
     });
-    setSelectedTitles(new Set());
+    setSelectedIds(new Set());
   };
 
   const createMiniApp = async (event: FormEvent<HTMLFormElement>) => {
@@ -352,45 +347,6 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
     setCurrentPage(1);
     setIsCreateOpen(false);
     await onReload();
-  };
-
-  const saveRename = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!renameMiniApp) {
-      return;
-    }
-
-    const title = renameMiniApp.title.trim();
-    const description = renameMiniApp.description.trim();
-
-    if (!title || !description) {
-      return;
-    }
-
-    setRows((current) =>
-      current.map((row) =>
-        row.title === renameMiniApp.originalTitle
-          ? {
-              ...row,
-              logo: title[0].toUpperCase(),
-              title,
-              description,
-            }
-          : row,
-      ),
-    );
-    setSelectedTitles((current) => {
-      if (!current.has(renameMiniApp.originalTitle)) {
-        return current;
-      }
-
-      const next = new Set(current);
-      next.delete(renameMiniApp.originalTitle);
-      next.add(title);
-      return next;
-    });
-    setRenameMiniApp(null);
   };
 
   const saveSettings = (event: FormEvent<HTMLFormElement>) => {
@@ -454,66 +410,68 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
                   <SelectItem value="disabled">Disabled</SelectItem>
                 </SelectContent>
               </Select>
-              <Dialog onOpenChange={setIsCreateOpen} open={isCreateOpen}>
-                <DialogTrigger asChild>
-                  <Button type="button">
-                    <Plus />
-                    New MiniApp
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <form className="grid gap-5" onSubmit={createMiniApp}>
-                    <DialogHeader>
-                      <DialogTitle>Create MiniApp</DialogTitle>
-                      <DialogDescription>
-                        Enter the miniapp details to add it to the dashboard.
-                      </DialogDescription>
-                    </DialogHeader>
+              {!isAdmin && (
+                <Dialog onOpenChange={setIsCreateOpen} open={isCreateOpen}>
+                  <DialogTrigger asChild>
+                    <Button type="button">
+                      <Plus />
+                      New MiniApp
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <form className="grid gap-5" onSubmit={createMiniApp}>
+                      <DialogHeader>
+                        <DialogTitle>Create MiniApp</DialogTitle>
+                        <DialogDescription>
+                          Enter the miniapp details to add it to the dashboard.
+                        </DialogDescription>
+                      </DialogHeader>
 
-                    <div className="grid gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="miniapp-name">App name</Label>
-                        <Input
-                          id="miniapp-name"
-                          onChange={(event) => setNewMiniApp((current) => ({ ...current, title: event.target.value }))}
-                          placeholder="Customer Portal"
-                          required
-                          value={newMiniApp.title}
-                        />
+                      <div className="grid gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="miniapp-name">App name</Label>
+                          <Input
+                            id="miniapp-name"
+                            onChange={(event) => setNewMiniApp((current) => ({ ...current, title: event.target.value }))}
+                            placeholder="Customer Portal"
+                            required
+                            value={newMiniApp.title}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="miniapp-description">Description</Label>
+                          <Input
+                            id="miniapp-description"
+                            onChange={(event) =>
+                              setNewMiniApp((current) => ({ ...current, description: event.target.value }))
+                            }
+                            placeholder="Short description"
+                            required
+                            value={newMiniApp.description}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="miniapp-url">App URL</Label>
+                          <Input
+                            id="miniapp-url"
+                            onChange={(event) => setNewMiniApp((current) => ({ ...current, appUrl: event.target.value }))}
+                            placeholder="https://example.com"
+                            required
+                            type="url"
+                            value={newMiniApp.appUrl}
+                          />
+                        </div>
                       </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="miniapp-description">Description</Label>
-                        <Input
-                          id="miniapp-description"
-                          onChange={(event) =>
-                            setNewMiniApp((current) => ({ ...current, description: event.target.value }))
-                          }
-                          placeholder="Short description"
-                          required
-                          value={newMiniApp.description}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="miniapp-url">App URL</Label>
-                        <Input
-                          id="miniapp-url"
-                          onChange={(event) => setNewMiniApp((current) => ({ ...current, appUrl: event.target.value }))}
-                          placeholder="https://example.com"
-                          required
-                          type="url"
-                          value={newMiniApp.appUrl}
-                        />
-                      </div>
-                    </div>
 
-                    <DialogFooter>
-                      <Button className="bg-black text-white hover:bg-black/90" type="submit">
-                        Create
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                      <DialogFooter>
+                        <Button className="bg-black text-white hover:bg-black/90" type="submit">
+                          Create
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
             </>
           )}
         </CardAction>
@@ -526,8 +484,7 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
               <TableHead className="min-w-[280px]">Name</TableHead>
               <TableHead className="min-w-[360px]">Description</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-[1%] text-right">Settings</TableHead>
-              <TableHead className="w-[1%] text-right">Rename</TableHead>
+              <TableHead className="w-[1%] text-right">Edit</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -537,8 +494,8 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
                   <div className="flex items-center gap-4">
                     <Checkbox
                       aria-label={`Select ${row.title}`}
-                      checked={selectedTitles.has(row.title)}
-                      onCheckedChange={(checked) => toggleRowSelection(row.title, checked)}
+                      checked={selectedIds.has(row.id)}
+                      onCheckedChange={(checked) => toggleRowSelection(row.id, checked)}
                     />
                     <Avatar className="size-7 rounded-md">
                       <AvatarFallback className={cn('rounded-md text-xs font-semibold', row.color)}>
@@ -567,19 +524,19 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
                   >
                     <DialogTrigger asChild>
                       <Button
-                        aria-label={`Open settings for ${row.title}`}
+                        aria-label={`Edit ${row.title}`}
                         onClick={() => setSettingsMiniApp({ title: row.title, appUrl: row.appUrl ?? '' })}
                         size="icon-sm"
                         type="button"
                         variant="ghost"
                       >
-                        <Settings />
+                        <Edit3 />
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <form className="grid gap-5" onSubmit={saveSettings}>
                         <DialogHeader>
-                          <DialogTitle>MiniApp Settings</DialogTitle>
+                          <DialogTitle>Edit MiniApp</DialogTitle>
                           <DialogDescription>Update the App URL for {row.title}.</DialogDescription>
                         </DialogHeader>
 
@@ -608,82 +565,11 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
                     </DialogContent>
                   </Dialog>
                 </TableCell>
-                <TableCell className="text-right">
-                  <Dialog
-                    onOpenChange={(open) => {
-                      if (!open) {
-                        setRenameMiniApp(null);
-                      }
-                    }}
-                    open={renameMiniApp?.originalTitle === row.title}
-                  >
-                    <DialogTrigger asChild>
-                      <Button
-                        aria-label={`Rename ${row.title}`}
-                        onClick={() =>
-                          setRenameMiniApp({
-                            originalTitle: row.title,
-                            title: row.title,
-                            description: row.description,
-                          })
-                        }
-                        size="icon-sm"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <Edit3 />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <form className="grid gap-5" onSubmit={saveRename}>
-                        <DialogHeader>
-                          <DialogTitle>Rename MiniApp</DialogTitle>
-                          <DialogDescription>Update the name and description for this miniapp.</DialogDescription>
-                        </DialogHeader>
-
-                        <div className="grid gap-4">
-                          <div className="grid gap-2">
-                            <Label htmlFor={`rename-name-${row.title}`}>App name</Label>
-                            <Input
-                              id={`rename-name-${row.title}`}
-                              onChange={(event) =>
-                                setRenameMiniApp((current) =>
-                                  current ? { ...current, title: event.target.value } : current,
-                                )
-                              }
-                              required
-                              value={renameMiniApp?.title ?? ''}
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor={`rename-description-${row.title}`}>Description</Label>
-                            <Input
-                              id={`rename-description-${row.title}`}
-                              onChange={(event) =>
-                                setRenameMiniApp((current) =>
-                                  current ? { ...current, description: event.target.value } : current,
-                                )
-                              }
-                              required
-                              value={renameMiniApp?.description ?? ''}
-                            />
-                          </div>
-                        </div>
-
-                        <DialogFooter>
-                          <Button className="bg-black text-white hover:bg-black/90" type="submit">
-                            Save
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </TableCell>
               </TableRow>
             ))}
             {pageRows.length === 0 && (
               <TableRow>
-                <TableCell className="h-24 text-center text-muted-foreground" colSpan={5}>
+                <TableCell className="h-24 text-center text-muted-foreground" colSpan={4}>
                   No miniapps found for this status.
                 </TableCell>
               </TableRow>
@@ -722,10 +608,11 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
 }
 
 type DashboardContentProps = {
+  isAdmin: boolean;
   userName: string;
 };
 
-function DashboardContent({ userName }: DashboardContentProps) {
+function DashboardContent({ isAdmin, userName }: DashboardContentProps) {
   const [rows, setRows] = useState<VisibleProjectRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -770,7 +657,7 @@ function DashboardContent({ userName }: DashboardContentProps) {
       ) : (
         <>
           <MiniAppsChart rows={rows} />
-          <ProjectsTable onReload={loadMiniapps} rows={rows} setRows={setRows} />
+          <ProjectsTable isAdmin={isAdmin} onReload={loadMiniapps} rows={rows} setRows={setRows} />
         </>
       )}
     </div>
@@ -780,6 +667,7 @@ function DashboardContent({ userName }: DashboardContentProps) {
 export function HomePage() {
   const navigate = useNavigate();
   const userName = sessionStore.userName;
+  const isAdmin = sessionStore.role === 'admin';
 
   const handleLogout = async () => {
     await sessionStore.logout();
@@ -793,7 +681,7 @@ export function HomePage() {
     >
       <AppSidebar userName={userName} onLogout={handleLogout} />
       <SidebarInset className="dashboard-inset">
-        <DashboardContent userName={userName} />
+        <DashboardContent isAdmin={isAdmin} userName={userName} />
       </SidebarInset>
     </SidebarProvider>
   );

@@ -133,14 +133,32 @@ async function updateMiniapp(id: string, data: MiniappFormData): Promise<ApiAnsw
     return mockMiniappApi.updateMiniapp(id, data);
   }
 
-  const requestData: UpdateMiniappRequest = {
-    title: data.title,
-    description: data.description,
-    url: data.url,
-    status: data.status,
-  };
+  const currentUserResponse = await getCurrentUser();
 
-  return customPatch<UpdateMiniappRequest, Miniapp>(getAdminMiniappPath(id), requestData);
+  if (currentUserResponse.isError || !currentUserResponse.data) {
+    return {
+      isError: true,
+      status: currentUserResponse.status,
+      errorMessage: currentUserResponse.errorMessage,
+    };
+  }
+
+  const role = currentUserResponse.data.role;
+  const requestData: UpdateMiniappRequest =
+    role === 'admin'
+      ? {
+          title: data.title,
+          description: data.description,
+          url: data.url,
+          status: data.status,
+        }
+      : {
+          title: data.title,
+          description: data.description,
+          url: data.url,
+        };
+
+  return customPatch<UpdateMiniappRequest, Miniapp>(getMiniappPath(role, id), requestData);
 }
 
 async function deleteMiniapp(id: string): Promise<ApiAnswer<void>> {
