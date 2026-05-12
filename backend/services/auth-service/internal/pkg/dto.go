@@ -57,6 +57,10 @@ type PromoteUserRequest struct {
 	Email string `json:"email"`
 }
 
+type GetUserRequest struct {
+	Email string `json:"email"`
+}
+
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`

@@ -234,6 +234,20 @@ func (s *Service) ListUsers(adminAccessToken string, page, limit int, role, sear
 	}, nil
 }
 
+func (s *Service) GetUserByEmail(adminAccessToken, email string) (*pkg_dto.UserResponse, error) {
+	if err := s.requireAdmin(adminAccessToken); err != nil {
+		return nil, err
+	}
+
+	user, err := s.usersRepo.GetUser(normalizeEmail(email))
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	resp := userResponse(user)
+	return &resp, nil
+}
+
 func (s *Service) PromoteUser(adminAccessToken, email string) (*pkg_dto.UserResponse, error) {
 	admin, err := s.adminUser(adminAccessToken)
 	if err != nil {

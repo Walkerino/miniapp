@@ -35,6 +35,37 @@ func (h *Handler) AdminUsersHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+func (h *Handler) AdminUserHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		return
+	}
+
+	token, err := bearerToken(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized", "Missing bearer token")
+		return
+	}
+
+	var req pkg_dto.GetUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "Invalid request body")
+		return
+	}
+	if strings.TrimSpace(req.Email) == "" {
+		writeError(w, http.StatusBadRequest, "bad_request", "Invalid user request")
+		return
+	}
+
+	user, err := h.service.GetUserByEmail(token, req.Email)
+	if err != nil {
+		h.writeServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, user)
+}
+
 func (h *Handler) PromoteUserHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
