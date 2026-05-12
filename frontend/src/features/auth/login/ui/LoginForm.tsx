@@ -83,27 +83,6 @@ export const LoginForm = observer(function LoginForm() {
         Sign In
       </button>
 
-      <div className="auth-card__divider">
-        <span />
-        <p>or continue with</p>
-        <span />
-      </div>
-
-      <div className="auth-card__socials">
-        <button type="button">
-          <span className="auth-card__google" aria-hidden="true">
-            G
-          </span>
-          Google
-        </button>
-        <button type="button">
-          <span className="auth-card__github" aria-hidden="true">
-            G
-          </span>
-          GitHub
-        </button>
-      </div>
-
       <p className="auth-card__signup">
         Don&apos;t have an account? <Link to={routesMasks.signup.create()}>Sign Up</Link>
       </p>
