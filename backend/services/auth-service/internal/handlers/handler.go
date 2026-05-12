@@ -13,6 +13,7 @@ type Service interface {
 	Me(accessToken string) (*pkg_dto.UserResponse, error)
 	ValidateAccessToken(accessToken string) (*pkg_dto.ValidateResponse, error)
 	ListUsers(adminAccessToken string, page, limit int, role, search string) (*pkg_dto.UserListResponse, error)
+	GetUserByEmail(adminAccessToken, email string) (*pkg_dto.UserResponse, error)
 	PromoteUser(adminAccessToken, email string) (*pkg_dto.UserResponse, error)
 	SetUserActive(adminAccessToken, userID string, active bool) (*pkg_dto.UserResponse, error)
 }

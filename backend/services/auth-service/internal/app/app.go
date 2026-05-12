@@ -27,6 +27,7 @@ func Run(logger *logger.Log, cfg *config.Config) {
 		{"/me", container.Handler.MeHandler},
 		{"/validate", container.Handler.ValidateHandler},
 		{"/health", container.Handler.HealthHandler},
+		{"/admin/user", container.Handler.AdminUserHandler},
 		{"/admin/users", container.Handler.AdminUsersHandler},
 		{"/admin/users/promote", container.Handler.PromoteUserHandler},
 		{"/admin/users/", container.Handler.UserActivationHandler},

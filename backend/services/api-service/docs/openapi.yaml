@@ -540,6 +540,33 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /api/admin/user:
+    post:
+      tags:
+        - Admin Users
+      summary: Get user by email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GetUserRequest"
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/admin/users/promote:
     post:
       tags:
@@ -1060,6 +1087,16 @@ components:
           type: string
           format: email
           example: newadmin@example.com
+
+    GetUserRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
 
     ErrorResponse:
       type: object
