@@ -3,4 +3,4 @@ export type RouteConfig = {
   title?: string;
 };
 
-export type StatusType = "pending" | "active" | "disabled" | "deleted"
+export type StatusType = "pending" | "active" | "disabled" | "deleted" | "rejected"

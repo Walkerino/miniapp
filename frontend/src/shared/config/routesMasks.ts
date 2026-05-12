@@ -15,6 +15,10 @@ export const routesMasks = {
     mask: '/profile',
     create: () => '/profile',
   },
+  admin: {
+    mask: '/admin',
+    create: () => '/admin',
+  },
   miniapps: {
     listMask: '/miniapps',
     legacyListMask: '/miniApps',
