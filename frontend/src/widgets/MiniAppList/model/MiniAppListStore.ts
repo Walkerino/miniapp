@@ -45,6 +45,10 @@ export class MiniAppListStore implements ILocalStore {
   private _isLoading = false;
   private _isLoadingMore = false;
   private _error: string | null = null;
+  private _page = 1;
+  private _limit = DEFAULT_PAGE_LIMIT;
+  private _total = 0;
+  private _status: StatusType | undefined;
   private _currentUserRole: UserRole | null = null;
   private _statusActionIds = new Set<string>();
 
@@ -76,11 +80,12 @@ export class MiniAppListStore implements ILocalStore {
 
     const [currentUserResponse, response] = await Promise.all([
       miniappApi.getCurrentUser(),
-      miniappApi.getMiniapps(params),
+      miniappApi.getMiniapps(requestParams),
     ]);
 
     runInAction(() => {
       this._isLoading = false;
+      this._isLoadingMore = false;
       this._currentUserRole = currentUserResponse.data?.role ?? null;
 
       if (response.isError || !response.data) {
@@ -95,6 +100,14 @@ export class MiniAppListStore implements ILocalStore {
       this._limit = response.data.limit;
       this._total = response.data.total;
     });
+  }
+
+  async loadNextPage() {
+    if (!this.hasMore || this._isLoading || this._isLoadingMore) {
+      return;
+    }
+
+    await this.load({ page: this._page + 1 });
   }
 
   async updateStatus(id: string, action: AdminStatusAction) {
@@ -242,6 +255,22 @@ export class MiniAppListStore implements ILocalStore {
     return this._currentUserRole === 'admin';
   }
 
+  get page() {
+    return this._page;
+  }
+
+  get pageCount() {
+    return Math.max(Math.ceil(this._total / this._limit), 1);
+  }
+
+  get total() {
+    return this._total;
+  }
+
+  get hasMore() {
+    return this._page < this.pageCount;
+  }
+
   isStatusUpdating(id: string) {
     return this._statusActionIds.has(id);
   }
@@ -251,6 +280,10 @@ export class MiniAppListStore implements ILocalStore {
     this._isLoading = false;
     this._isLoadingMore = false;
     this._error = null;
+    this._page = 1;
+    this._limit = DEFAULT_PAGE_LIMIT;
+    this._total = 0;
+    this._status = undefined;
     this._currentUserRole = null;
     this._statusActionIds.clear();
   }

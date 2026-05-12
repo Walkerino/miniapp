@@ -29,13 +29,14 @@ type MiniAppListViewProps = {
   isAdmin: boolean;
   isLoadingMore: boolean;
   items: MiniappCardData[];
-  isAdmin: boolean;
   onCreate: () => void;
   onDelete: (ids: string[]) => void | Promise<void>;
   onPreview: (id: string) => string | null | Promise<string | null>;
   onLaunch: (id: string) => void | Promise<void>;
+  onLoadMore: () => void | Promise<void>;
   onUpdateDetails: (id: string, title: string, description: string, url: string) => void | Promise<void>;
   onStatusAction: (id: string, action: 'publish' | 'disable' | 'enable') => void | Promise<void>;
+  onStatusFilterChange: (status: StatusFilter) => void | Promise<void>;
   isStatusUpdating: (id: string) => boolean;
   onToggleFavorite: (id: string) => void | Promise<void>;
   page: number;
@@ -48,13 +49,14 @@ export function MiniAppListView({
   isAdmin,
   isLoadingMore,
   items,
-  isAdmin,
   onCreate,
   onDelete,
   onPreview,
   onLaunch,
+  onLoadMore,
   onUpdateDetails,
   onStatusAction,
+  onStatusFilterChange,
   isStatusUpdating,
   onToggleFavorite,
   page,

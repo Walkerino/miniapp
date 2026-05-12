@@ -17,7 +17,6 @@ import {
   LogOut,
   Plus,
   Rocket,
-  Settings,
   Trophy,
   Trash2,
   User,
@@ -808,7 +807,7 @@ function DashboardContent({ isAdmin, userName }: DashboardContentProps) {
             <MiniAppsChart rows={rows} />
             <PopularMiniApps rows={rows} />
           </div>
-          <ProjectsTable onReload={loadMiniapps} rows={rows} setRows={setRows} />
+          <ProjectsTable isAdmin={isAdmin} onReload={loadMiniapps} rows={rows} setRows={setRows} />
         </>
       )}
     </div>

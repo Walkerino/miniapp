@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 
 import {
   AppWindow,
@@ -8,8 +8,8 @@ import {
   ExternalLink,
   Heart,
   PauseCircle,
+  Pencil,
   PlayCircle,
-  Settings,
 } from 'lucide-react';
 
 import { Badge } from 'components/ui/badge';
@@ -33,6 +33,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from 'components/ui/dialog';
+import { Input } from 'components/ui/input';
+import { Label } from 'components/ui/label';
 import { sessionStore } from 'entities/session';
 import type { MiniappCardData } from 'entities/miniapp';
 import { cn } from 'shared/lib/utils';
@@ -75,6 +77,13 @@ const miniappCoverPaths = [
   '/miniapp-covers/cover-7.png',
   '/miniapp-covers/cover-8.png',
 ];
+
+const miniappContextMessageTypes = new Set([
+  'MINIAPP_READY',
+  'MINIAPP_CONTEXT_REQUESTED',
+  'miniapp:ready',
+  'miniapp:context-requested',
+]);
 
 function escapeAttribute(value: string) {
   return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;');
@@ -178,6 +187,7 @@ export const MiniApp = ({
   onStatusAction,
   onToggleFavorite,
 }: MiniAppProps) => {
+  const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
   const [isIntegrationOpen, setIsIntegrationOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
@@ -226,6 +236,89 @@ export const MiniApp = ({
           ? { action: 'enable', label: 'Enable', icon: PlayCircle, variant: 'secondary' }
           : null;
   const StatusActionIcon = statusAction?.icon;
+
+  function getHostContext() {
+    const user = sessionStore.user;
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        is_active: user.is_active,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+      },
+      miniapp: {
+        id: miniapp.id,
+        title: miniapp.title,
+      },
+      expires_at: null,
+    };
+  }
+
+  function postContextToPreview() {
+    const context = getHostContext();
+
+    if (!previewIframeRef.current?.contentWindow || !context) {
+      return;
+    }
+
+    previewIframeRef.current.contentWindow.postMessage(
+      {
+        type: 'MINIAPP_CONTEXT',
+        payload: context,
+      },
+      '*'
+    );
+  }
+
+  useEffect(() => {
+    if (!isPreviewOpen || !previewUrl) {
+      return undefined;
+    }
+
+    function handleMessage(event: MessageEvent) {
+      const message = event.data;
+      const isPreviewSource =
+        event.source === previewIframeRef.current?.contentWindow ||
+        message?.source === 'miniapp-platform-widget';
+
+      if (!isPreviewSource) {
+        return;
+      }
+
+      if (!message || typeof message !== 'object') {
+        return;
+      }
+
+      if (miniappContextMessageTypes.has(String(message.type))) {
+        postContextToPreview();
+      }
+    }
+
+    window.addEventListener('message', handleMessage);
+
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isPreviewOpen, previewUrl]);
+
+  useEffect(() => {
+    if (!isPreviewOpen || !previewUrl) {
+      return undefined;
+    }
+
+    const retryDelays = [0, 100, 300, 700, 1200, 2000];
+    const timers = retryDelays.map((delay) =>
+      window.setTimeout(postContextToPreview, delay)
+    );
+
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [isPreviewOpen, previewUrl]);
 
   function launchMiniapp() {
     if (!isActive) {
@@ -320,41 +413,43 @@ export const MiniApp = ({
 
       <CardFooter className="flex-wrap justify-between gap-2 border-t pt-4">
         <div className="flex gap-1">
-          <Dialog open={isIntegrationOpen} onOpenChange={setIsIntegrationOpen}>
-            <DialogTrigger asChild>
-              <Button aria-label="Open integration snippets" size="icon-sm" type="button" variant="ghost">
-                <Cable />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Integration</DialogTitle>
-                <DialogDescription>
-                  {miniapp.description || 'Embed snippets for this miniapp.'}
-                </DialogDescription>
-              </DialogHeader>
+          {isActive && (
+            <Dialog open={isIntegrationOpen} onOpenChange={setIsIntegrationOpen}>
+              <DialogTrigger asChild>
+                <Button aria-label="Open integration snippets" size="icon-sm" type="button" variant="ghost">
+                  <Cable />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Integration</DialogTitle>
+                  <DialogDescription>
+                    {miniapp.description || 'Embed snippets for this miniapp.'}
+                  </DialogDescription>
+                </DialogHeader>
 
-              <div className="grid gap-4">
-                <SnippetBlock
-                  code={iframeCode}
-                  copied={copiedSnippet === 'iframe'}
-                  label="iframe"
-                  onCopy={() => void copyCode('iframe', iframeCode)}
-                />
+                <div className="grid gap-4">
+                  <SnippetBlock
+                    code={iframeCode}
+                    copied={copiedSnippet === 'iframe'}
+                    label="iframe"
+                    onCopy={() => void copyCode('iframe', iframeCode)}
+                  />
 
-                <SnippetBlock
-                  code={webviewCode}
-                  copied={copiedSnippet === 'webview'}
-                  label="webview"
-                  onCopy={() => void copyCode('webview', webviewCode)}
-                />
-              </div>
+                  <SnippetBlock
+                    code={webviewCode}
+                    copied={copiedSnippet === 'webview'}
+                    label="webview"
+                    onCopy={() => void copyCode('webview', webviewCode)}
+                  />
+                </div>
 
-              <DialogFooter className="items-center sm:justify-between">
-                <p className="truncate text-sm text-muted-foreground">{miniapp.url}</p>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter className="min-w-0 items-center sm:justify-between">
+                  <p className="min-w-0 max-w-full flex-1 truncate text-sm text-muted-foreground">{miniapp.url}</p>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
 
           <Button
             aria-label={miniapp.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
@@ -380,69 +475,71 @@ export const MiniApp = ({
               {isStatusUpdating ? 'Updating' : statusAction.label}
             </Button>
           )}
-          <Dialog
-            open={isPreviewOpen}
-            onOpenChange={(open) => {
-              setIsPreviewOpen(open);
+          {isActive && (
+            <>
+              <Dialog
+                open={isPreviewOpen}
+                onOpenChange={(open) => {
+                  setIsPreviewOpen(open);
 
-              if (!open) {
-                setPreviewUrl(null);
-                setPreviewError(null);
-                setIsPreviewLoading(false);
-              }
-            }}
-          >
-            <Button
-              disabled={!isActive}
-              size="sm"
-              title={isActive ? undefined : 'Preview is available after activation'}
-              type="button"
-              variant="outline"
-              onClick={() => void previewMiniapp()}
-            >
-              <AppWindow />
-              Preview
-            </Button>
-            <DialogContent className="max-h-[calc(100svh-2rem)] gap-0 p-0 sm:max-w-6xl">
-              <DialogHeader className="px-6 pb-4 pt-6">
-                <DialogTitle>{miniapp.title}</DialogTitle>
-                <DialogDescription>Preview runs through launch URL with a temporary token.</DialogDescription>
-              </DialogHeader>
-
-              <div className="border-y bg-muted/30">
-                {isPreviewLoading && (
-                  <div className="flex h-[min(720px,calc(100svh-13rem))] items-center justify-center text-sm text-muted-foreground">
-                    Preparing preview...
-                  </div>
-                )}
-
-                {previewError && (
-                  <div className="flex h-[min(720px,calc(100svh-13rem))] items-center justify-center px-6 text-center text-sm text-destructive">
-                    {previewError}
-                  </div>
-                )}
-
-                {previewUrl && !isPreviewLoading && !previewError && (
-                  <iframe
-                    className="block h-[min(720px,calc(100svh-13rem))] w-full bg-background"
-                    src={previewUrl}
-                    title={miniapp.title}
-                    sandbox="allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
-                  />
-                )}
-              </div>
-
-              <DialogFooter className="items-center px-6 pb-6 pt-4 sm:justify-between">
-                <p className="max-w-full truncate text-sm text-muted-foreground">
-                  {previewUrl ?? miniapp.url}
-                </p>
-                <Button disabled={!previewUrl || !isActive} type="button" variant="outline" onClick={launchMiniapp}>
-                  <ExternalLink />
-                  Open tab
+                  if (!open) {
+                    setPreviewUrl(null);
+                    setPreviewError(null);
+                    setIsPreviewLoading(false);
+                  }
+                }}
+              >
+                <Button size="sm" type="button" variant="outline" onClick={() => void previewMiniapp()}>
+                  <AppWindow />
+                  Preview
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogContent className="max-h-[calc(100svh-2rem)] w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-6xl">
+                  <DialogHeader className="min-w-0 px-6 pb-4 pt-6">
+                    <DialogTitle>{miniapp.title}</DialogTitle>
+                    <DialogDescription>Preview runs through launch URL with a temporary token.</DialogDescription>
+                  </DialogHeader>
+
+                  <div className="min-w-0 border-y bg-muted/30">
+                    {isPreviewLoading && (
+                      <div className="flex h-[min(720px,calc(100svh-13rem))] items-center justify-center text-sm text-muted-foreground">
+                        Preparing preview...
+                      </div>
+                    )}
+
+                    {previewError && (
+                      <div className="flex h-[min(720px,calc(100svh-13rem))] items-center justify-center px-6 text-center text-sm text-destructive">
+                        {previewError}
+                      </div>
+                    )}
+
+                    {previewUrl && !isPreviewLoading && !previewError && (
+                      <iframe
+                        ref={previewIframeRef}
+                        className="block h-[min(720px,calc(100svh-13rem))] w-full max-w-full bg-background"
+                        src={previewUrl}
+                        title={miniapp.title}
+                        onLoad={postContextToPreview}
+                        sandbox="allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+                      />
+                    )}
+                  </div>
+
+                  <DialogFooter className="min-w-0 items-center px-6 pb-6 pt-4 sm:justify-between">
+                    <p className="min-w-0 max-w-full flex-1 truncate text-sm text-muted-foreground">
+                      {previewUrl ?? miniapp.url}
+                    </p>
+                    <Button disabled={!previewUrl} type="button" variant="outline" onClick={launchMiniapp}>
+                      <ExternalLink />
+                      Open tab
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Button aria-label="Launch miniapp" size="icon-sm" type="button" variant="ghost" onClick={launchMiniapp}>
+                <ExternalLink />
+              </Button>
+            </>
+          )}
           <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
             <DialogTrigger asChild>
               <Button
@@ -458,7 +555,7 @@ export const MiniApp = ({
                   })
                 }
               >
-                <Settings />
+                <Pencil />
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -502,6 +599,7 @@ export const MiniApp = ({
                       value={settingsForm.url}
                     />
                   </div>
+                </div>
 
                 <DialogFooter>
                   <Button type="submit">Save</Button>
