@@ -289,9 +289,9 @@ function MiniAppsChart({ rows }: MiniAppsChartProps) {
       <CardHeader>
         <div>
           <CardTitle>MiniApps Overview</CardTitle>
-          <CardDescription className="mt-2">
+          {/* <CardDescription className="mt-2">
             Status distribution across {total} visible miniapps
-          </CardDescription>
+          </CardDescription> */}
         </div>
       </CardHeader>
       <CardContent>
@@ -389,13 +389,12 @@ function PopularMiniApps({ rows }: MiniAppsChartProps) {
 }
 
 type ProjectsTableProps = {
-  isAdmin: boolean;
   onReload: () => Promise<void>;
   rows: VisibleProjectRow[];
   setRows: Dispatch<SetStateAction<VisibleProjectRow[]>>;
 };
 
-function ProjectsTable({ isAdmin, onReload, rows, setRows }: ProjectsTableProps) {
+function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
@@ -509,12 +508,12 @@ function ProjectsTable({ isAdmin, onReload, rows, setRows }: ProjectsTableProps)
       <CardHeader>
         <div>
           <CardTitle>MiniApps</CardTitle>
-          <CardDescription className="mt-2 flex items-center gap-2">
+          {/* <CardDescription className="mt-2 flex items-center gap-2">
             <span className="size-2 rounded-full bg-emerald-500" />
             30 done this month
-          </CardDescription>
+          </CardDescription> */}
         </div>
-        <CardAction className="flex gap-2">
+        <CardAction className="flex flex-wrap gap-2 max-sm:[&>*]:min-w-0 max-sm:[&>*]:flex-1">
           {selectedCount > 0 ? (
             <Button onClick={deleteSelectedRows} type="button" variant="destructive">
               <Trash2 />
@@ -529,7 +528,7 @@ function ProjectsTable({ isAdmin, onReload, rows, setRows }: ProjectsTableProps)
                 }}
                 value={statusFilter}
               >
-                <SelectTrigger aria-label="Filter by status" className="w-[156px]">
+                <SelectTrigger aria-label="Filter by status" className="w-full sm:w-[156px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -539,80 +538,79 @@ function ProjectsTable({ isAdmin, onReload, rows, setRows }: ProjectsTableProps)
                   <SelectItem value="disabled">Disabled</SelectItem>
                 </SelectContent>
               </Select>
-              {!isAdmin && (
-                <Dialog onOpenChange={setIsCreateOpen} open={isCreateOpen}>
-                  <DialogTrigger asChild>
-                    <Button type="button">
-                      <Plus />
-                      New MiniApp
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <form className="grid gap-5" onSubmit={createMiniApp}>
-                      <DialogHeader>
-                        <DialogTitle>Create MiniApp</DialogTitle>
-                        <DialogDescription>
-                          Enter the miniapp details to add it to the dashboard.
-                        </DialogDescription>
-                      </DialogHeader>
+              <Dialog onOpenChange={setIsCreateOpen} open={isCreateOpen}>
+                <DialogTrigger asChild>
+                  <Button className="max-sm:w-full" type="button">
+                    <Plus />
+                    New MiniApp
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <form className="grid gap-5" onSubmit={createMiniApp}>
+                    <DialogHeader>
+                      <DialogTitle>Create MiniApp</DialogTitle>
+                      <DialogDescription>
+                        Enter the miniapp details to add it to the dashboard.
+                      </DialogDescription>
+                    </DialogHeader>
 
-                      <div className="grid gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="miniapp-name">App name</Label>
-                          <Input
-                            id="miniapp-name"
-                            onChange={(event) => setNewMiniApp((current) => ({ ...current, title: event.target.value }))}
-                            placeholder="Customer Portal"
-                            required
-                            value={newMiniApp.title}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="miniapp-description">Description</Label>
-                          <Input
-                            id="miniapp-description"
-                            onChange={(event) =>
-                              setNewMiniApp((current) => ({ ...current, description: event.target.value }))
-                            }
-                            placeholder="Short description"
-                            required
-                            value={newMiniApp.description}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="miniapp-url">App URL</Label>
-                          <Input
-                            id="miniapp-url"
-                            onChange={(event) => setNewMiniApp((current) => ({ ...current, appUrl: event.target.value }))}
-                            placeholder="https://example.com"
-                            required
-                            type="url"
-                            value={newMiniApp.appUrl}
-                          />
-                        </div>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="miniapp-name">App name</Label>
+                        <Input
+                          id="miniapp-name"
+                          onChange={(event) => setNewMiniApp((current) => ({ ...current, title: event.target.value }))}
+                          placeholder="Customer Portal"
+                          required
+                          value={newMiniApp.title}
+                        />
                       </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="miniapp-description">Description</Label>
+                        <Input
+                          id="miniapp-description"
+                          onChange={(event) =>
+                            setNewMiniApp((current) => ({ ...current, description: event.target.value }))
+                          }
+                          placeholder="Short description"
+                          required
+                          value={newMiniApp.description}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="miniapp-url">App URL</Label>
+                        <Input
+                          id="miniapp-url"
+                          onChange={(event) => setNewMiniApp((current) => ({ ...current, appUrl: event.target.value }))}
+                          placeholder="https://example.com"
+                          required
+                          type="url"
+                          value={newMiniApp.appUrl}
+                        />
+                      </div>
+                    </div>
 
-                      <DialogFooter>
-                        <Button className="bg-black text-white hover:bg-black/90" type="submit">
-                          Create
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-              )}
+                    <DialogFooter>
+                      <Button className="bg-black text-white hover:bg-black/90" type="submit">
+                        Create
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </>
           )}
         </CardAction>
       </CardHeader>
 
-      <CardContent>
-        <Table>
+      <CardContent className="overflow-x-auto">
+        <Table className="min-w-[760px]">
           <TableHeader>
             <TableRow>
               <TableHead className="min-w-[280px]">Name</TableHead>
               <TableHead className="min-w-[360px]">Description</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">№ of launches</TableHead>
               <TableHead className="w-[1%] text-right">Edit</TableHead>
             </TableRow>
           </TableHeader>
@@ -641,6 +639,9 @@ function ProjectsTable({ isAdmin, onReload, rows, setRows }: ProjectsTableProps)
                   <Badge className={cn('capitalize', statusVariants[row.status])} variant="outline">
                     {row.status}
                   </Badge>
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  {formatMetric(row.launchesCount)}
                 </TableCell>
                 <TableCell className="text-right">
                   <Dialog
@@ -698,7 +699,7 @@ function ProjectsTable({ isAdmin, onReload, rows, setRows }: ProjectsTableProps)
             ))}
             {pageRows.length === 0 && (
               <TableRow>
-                <TableCell className="h-24 text-center text-muted-foreground" colSpan={4}>
+                <TableCell className="h-24 text-center text-muted-foreground" colSpan={5}>
                   No miniapps found for this status.
                 </TableCell>
               </TableRow>
@@ -707,11 +708,11 @@ function ProjectsTable({ isAdmin, onReload, rows, setRows }: ProjectsTableProps)
         </Table>
       </CardContent>
 
-      <CardFooter className="justify-between border-t">
+      <CardFooter className="flex-wrap justify-between gap-3 border-t">
         <p className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">Page {safeCurrentPage}</span> of {pageCount}
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 max-sm:w-full max-sm:[&>button]:flex-1">
           <Button
             disabled={safeCurrentPage === 1}
             onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
@@ -737,11 +738,10 @@ function ProjectsTable({ isAdmin, onReload, rows, setRows }: ProjectsTableProps)
 }
 
 type DashboardContentProps = {
-  isAdmin: boolean;
   userName: string;
 };
 
-function DashboardContent({ isAdmin, userName }: DashboardContentProps) {
+function DashboardContent({ userName }: DashboardContentProps) {
   const [rows, setRows] = useState<VisibleProjectRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -780,7 +780,7 @@ function DashboardContent({ isAdmin, userName }: DashboardContentProps) {
     const miniapps = [
       ...response.data.items,
       ...pageResponses.flatMap((pageResponse) => pageResponse.data?.items ?? []),
-    ];
+    ].filter((miniapp) => miniapp.created_by === sessionStore.user?.id);
 
     setRows(miniapps.map(toVisibleRow).filter((row): row is VisibleProjectRow => Boolean(row)));
     setIsLoading(false);
@@ -795,7 +795,6 @@ function DashboardContent({ isAdmin, userName }: DashboardContentProps) {
   return (
     <div className="dashboard-shell">
       <div>
-        <p className="text-sm text-muted-foreground">Dashboard</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-normal">Добро пожаловать, {userName}</h1>
       </div>
       {isLoading ? (
@@ -815,7 +814,7 @@ function DashboardContent({ isAdmin, userName }: DashboardContentProps) {
             <MiniAppsChart rows={rows} />
             <PopularMiniApps rows={rows} />
           </div>
-          <ProjectsTable isAdmin={isAdmin} onReload={loadMiniapps} rows={rows} setRows={setRows} />
+          <ProjectsTable onReload={loadMiniapps} rows={rows} setRows={setRows} />
         </>
       )}
     </div>
@@ -825,7 +824,6 @@ function DashboardContent({ isAdmin, userName }: DashboardContentProps) {
 export function HomePage() {
   const navigate = useNavigate();
   const userName = sessionStore.userName;
-  const isAdmin = sessionStore.role === 'admin';
 
   const handleLogout = async () => {
     await sessionStore.logout();
@@ -839,7 +837,7 @@ export function HomePage() {
     >
       <AppSidebar userName={userName} onLogout={handleLogout} />
       <SidebarInset className="dashboard-inset">
-        <DashboardContent isAdmin={isAdmin} userName={userName} />
+        <DashboardContent userName={userName} />
       </SidebarInset>
     </SidebarProvider>
   );

@@ -1,17 +1,14 @@
 import { useEffect } from 'react';
 
 import { observer } from 'mobx-react-lite';
-import { useNavigate } from 'react-router-dom';
 
 import { Card, CardContent } from 'components/ui/card';
-import { routesMasks } from 'shared/config/routesMasks';
 import { useLocalStore } from 'shared/lib/useLocalStore';
 import { MiniAppListStore } from 'widgets/MiniAppList/model/MiniAppListStore';
 import { MiniAppListView } from 'widgets/MiniAppList/ui/MiniAppListView';
 
 export const MiniAppList = observer(() => {
   const store = useLocalStore(() => new MiniAppListStore());
-  const navigate = useNavigate();
 
   useEffect(() => {
     void store.load();
@@ -47,7 +44,7 @@ export const MiniAppList = observer(() => {
       isAdmin={store.isAdmin}
       isLoadingMore={store.isLoadingMore}
       items={store.items}
-      onCreate={() => navigate(routesMasks.miniapps.create())}
+      onCreate={store.createMiniapp}
       onDelete={store.deleteMiniapps}
       onLoadMore={store.loadNextPage}
       onPreview={store.getMiniappLaunchUrl}
@@ -61,6 +58,7 @@ export const MiniAppList = observer(() => {
       onToggleFavorite={store.toggleFavorite}
       page={store.page}
       pageCount={store.pageCount}
+      statusFilter={store.status ?? 'all'}
       total={store.total}
     />
   );
