@@ -109,19 +109,19 @@ export const ProfilePage = observer(function ProfilePage() {
           </CardContent>
         </Card>
 
-        <section className="grid gap-4">
+        <section className="grid gap-4 rounded-lg border border-red-200 bg-red-50/60 p-4 sm:p-6">
           <div>
-            <h2 className="text-lg font-semibold">Danger zone</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h2 className="text-lg font-semibold text-red-950">Danger zone</h2>
+            <p className="mt-1 text-sm text-red-900/70">
               Sensitive account actions are grouped here.
             </p>
           </div>
 
           <div className="grid gap-3">
             {dangerActions.map((action) => (
-              <Card className="rounded-lg" key={action.title}>
+              <Card className="rounded-lg border-red-200 bg-white/85" key={action.title}>
                 <CardHeader className="gap-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
-                  <div className="flex size-10 items-center justify-center rounded-md border bg-background">
+                  <div className="flex size-10 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700">
                     <action.icon className="size-5" />
                   </div>
                   <div className="min-w-0">
