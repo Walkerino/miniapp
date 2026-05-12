@@ -254,19 +254,16 @@ function DashboardMetrics({ rows }: MiniAppsChartProps) {
       icon: LayoutDashboard,
       label: 'Visible MiniApps',
       value: rows.length,
-      detail: `${activeCount} active`,
     },
     {
       icon: Rocket,
       label: 'Total Launches',
       value: totalLaunches,
-      detail: 'Across loaded miniapps',
     },
     {
       icon: Heart,
       label: 'Favorites',
       value: favoriteCount,
-      detail: 'Marked by current user',
     },
   ];
 
