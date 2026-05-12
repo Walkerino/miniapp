@@ -69,6 +69,7 @@ type MiniAppListViewProps = {
   onStatusAction: (id: string, action: 'publish' | 'disable' | 'enable') => void | Promise<void>;
   onStatusFilterChange: (status: StatusFilter) => void | Promise<void>;
   isStatusUpdating: (id: string) => boolean;
+  getCreatorName: (id: string) => string;
   onToggleFavorite: (id: string) => void | Promise<void>;
   page: number;
   pageCount: number;
@@ -90,6 +91,7 @@ export function MiniAppListView({
   onStatusAction,
   onStatusFilterChange,
   isStatusUpdating,
+  getCreatorName,
   onToggleFavorite,
   page,
   pageCount,
@@ -218,96 +220,98 @@ export function MiniAppListView({
             <Button type="button" variant={isSelectMode ? 'secondary' : 'outline'} onClick={toggleSelectMode}>
               {isSelectMode ? 'Cancel' : 'Select'}
             </Button>
-            <Dialog onOpenChange={setIsCreateOpen} open={isCreateOpen}>
-              <DialogTrigger asChild>
-                <Button className="max-sm:w-full" type="button">
-                  <Plus />
-                  New MiniApp
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <form className="grid gap-5" onSubmit={createMiniApp}>
-                  <DialogHeader>
-                    <DialogTitle>Create MiniApp</DialogTitle>
-                    <DialogDescription>
-                      Enter the miniapp details to add it to the dashboard.
-                    </DialogDescription>
-                  </DialogHeader>
+            {!isAdmin && (
+              <Dialog onOpenChange={setIsCreateOpen} open={isCreateOpen}>
+                <DialogTrigger asChild>
+                  <Button className="max-sm:w-full" type="button">
+                    <Plus />
+                    New MiniApp
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <form className="grid gap-5" onSubmit={createMiniApp}>
+                    <DialogHeader>
+                      <DialogTitle>Create MiniApp</DialogTitle>
+                      <DialogDescription>
+                        Enter the miniapp details to add it to the dashboard.
+                      </DialogDescription>
+                    </DialogHeader>
 
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="miniapp-list-name">App name</Label>
-                      <Input
-                        id="miniapp-list-name"
-                        onChange={(event) =>
-                          setNewMiniApp((current) => ({ ...current, title: event.target.value }))
-                        }
-                        placeholder="Customer Portal"
-                        required
-                        value={newMiniApp.title}
-                      />
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="miniapp-list-name">App name</Label>
+                        <Input
+                          id="miniapp-list-name"
+                          onChange={(event) =>
+                            setNewMiniApp((current) => ({ ...current, title: event.target.value }))
+                          }
+                          placeholder="Customer Portal"
+                          required
+                          value={newMiniApp.title}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="miniapp-list-description">Description</Label>
+                        <Input
+                          id="miniapp-list-description"
+                          onChange={(event) =>
+                            setNewMiniApp((current) => ({
+                              ...current,
+                              description: event.target.value,
+                            }))
+                          }
+                          placeholder="Short description"
+                          required
+                          value={newMiniApp.description}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="miniapp-list-url">App URL</Label>
+                        <Input
+                          id="miniapp-list-url"
+                          onChange={(event) =>
+                            setNewMiniApp((current) => ({ ...current, url: event.target.value }))
+                          }
+                          placeholder="https://example.com"
+                          required
+                          type="url"
+                          value={newMiniApp.url}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="miniapp-list-category">Category</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setNewMiniApp((current) => ({
+                              ...current,
+                              category: value as MiniappCategory,
+                            }))
+                          }
+                          value={newMiniApp.category}
+                        >
+                          <SelectTrigger id="miniapp-list-category">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {miniappCategories.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="miniapp-list-description">Description</Label>
-                      <Input
-                        id="miniapp-list-description"
-                        onChange={(event) =>
-                          setNewMiniApp((current) => ({
-                            ...current,
-                            description: event.target.value,
-                          }))
-                        }
-                        placeholder="Short description"
-                        required
-                        value={newMiniApp.description}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="miniapp-list-url">App URL</Label>
-                      <Input
-                        id="miniapp-list-url"
-                        onChange={(event) =>
-                          setNewMiniApp((current) => ({ ...current, url: event.target.value }))
-                        }
-                        placeholder="https://example.com"
-                        required
-                        type="url"
-                        value={newMiniApp.url}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="miniapp-list-category">Category</Label>
-                      <Select
-                        onValueChange={(value) =>
-                          setNewMiniApp((current) => ({
-                            ...current,
-                            category: value as MiniappCategory,
-                          }))
-                        }
-                        value={newMiniApp.category}
-                      >
-                        <SelectTrigger id="miniapp-list-category">
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {miniappCategories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
 
-                  <DialogFooter>
-                    <Button className="bg-black text-white hover:bg-black/90" type="submit">
-                      Create
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    <DialogFooter>
+                      <Button className="bg-black text-white hover:bg-black/90" type="submit">
+                        Create
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
           </CardAction>
           <div className="col-span-full row-start-3 flex flex-wrap gap-2 sm:row-start-2">
             <Button
@@ -352,6 +356,7 @@ export function MiniAppListView({
                 isAdmin={isAdmin}
                 isStatusUpdating={isStatusUpdating(miniapp.id)}
                 miniapp={miniapp}
+                creatorName={getCreatorName(miniapp.created_by)}
                 onLaunch={onLaunch}
                 onPreview={onPreview}
                 onUpdateDetails={onUpdateDetails}

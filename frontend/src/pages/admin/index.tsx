@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import {
   BarChart3,
   Check,
+  ListChecks,
   MoreHorizontal,
   Rocket,
   Search,
@@ -33,7 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from 'components/ui/table';
-import { adminApi, type AdminMetricsResponse } from 'entities/admin';
+import { adminApi, type AdminAuditLogItem, type AdminMetricsResponse } from 'entities/admin';
 import { sessionStore } from 'entities/session';
 import type { Miniapp } from 'entities/miniapp';
 import type { AuthUser } from 'entities/user';
@@ -41,6 +42,7 @@ import { routesMasks } from 'shared/config/routesMasks';
 import { DashboardLayout } from 'widgets/DashboardLayout';
 
 const createdChartDurationOptions = [3, 7, 14, 21, 30] as const;
+const AUDIT_LOG_LIMIT = 20;
 
 type CreatedChartDuration = (typeof createdChartDurationOptions)[number];
 
@@ -113,12 +115,36 @@ function getOwnerName(users: AuthUser[], ownerId: string) {
   return owner?.name || owner?.email || ownerId.slice(0, 8);
 }
 
+function formatRole(role: string) {
+  return role ? `${role[0].toUpperCase()}${role.slice(1)}` : 'User';
+}
+
+function getAuditActionClassName(action: string) {
+  if (action.includes('publish')) {
+    return 'text-emerald-700';
+  }
+
+  if (action.includes('disable') || action.includes('reject')) {
+    return 'text-red-700';
+  }
+
+  if (action.includes('launch')) {
+    return 'text-sky-700';
+  }
+
+  return 'text-stone-900';
+}
+
 export function AdminPage() {
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [usersTotal, setUsersTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [metrics, setMetrics] = useState<AdminMetricsResponse | null>(null);
   const [miniapps, setMiniapps] = useState<Miniapp[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AdminAuditLogItem[]>([]);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [isAuditLoading, setIsAuditLoading] = useState(false);
   const [createdChartDuration, setCreatedChartDuration] = useState<CreatedChartDuration>(7);
   const [pendingMiniapps, setPendingMiniapps] = useState<Miniapp[]>([]);
   const [openUserMenuId, setOpenUserMenuId] = useState<string | null>(null);
@@ -132,18 +158,20 @@ export function AdminPage() {
     setIsLoading(true);
     setError(null);
 
-    const [usersResponse, metricsResponse, miniappsResponse, pendingResponse] = await Promise.all([
+    const [usersResponse, metricsResponse, miniappsResponse, pendingResponse, auditResponse] = await Promise.all([
       adminApi.getUsers(search, 100),
       adminApi.getMetrics(),
       adminApi.getMiniapps(),
       adminApi.getPendingMiniapps(),
+      adminApi.getAudit(1, AUDIT_LOG_LIMIT),
     ]);
 
     if (
       usersResponse.isError ||
       metricsResponse.isError ||
       miniappsResponse.isError ||
-      pendingResponse.isError
+      pendingResponse.isError ||
+      auditResponse.isError
     ) {
       setError('Failed to load admin dashboard data.');
       setIsLoading(false);
@@ -155,6 +183,9 @@ export function AdminPage() {
     setMetrics(metricsResponse.data ?? null);
     setMiniapps(miniappsResponse.data?.items ?? []);
     setPendingMiniapps(pendingResponse.data?.items ?? []);
+    setAuditLogs(auditResponse.data?.items ?? []);
+    setAuditPage(auditResponse.data?.page ?? 1);
+    setAuditTotal(auditResponse.data?.total ?? 0);
     setIsLoading(false);
   }, [search]);
 
@@ -183,6 +214,8 @@ export function AdminPage() {
   );
   const maxCreatedByDay = Math.max(...createdByDay.map((day) => day.value), 1);
   const createdInSelectedPeriod = createdByDay.reduce((sum, day) => sum + day.value, 0);
+  const auditPageCount = Math.max(Math.ceil(auditTotal / AUDIT_LOG_LIMIT), 1);
+  const hasMoreAuditLogs = auditPage < auditPageCount;
 
   if (sessionStore.role !== 'admin') {
     return <Navigate to={routesMasks.main.create()} replace />;
@@ -242,6 +275,32 @@ export function AdminPage() {
     }
 
     setIsActionLoading(false);
+  };
+
+  const loadMoreAuditLogs = async () => {
+    if (isAuditLoading || !hasMoreAuditLogs) {
+      return;
+    }
+
+    const nextPage = auditPage + 1;
+
+    setIsAuditLoading(true);
+    setError(null);
+
+    const response = await adminApi.getAudit(nextPage, AUDIT_LOG_LIMIT);
+
+    if (response.isError || !response.data) {
+      setError('Failed to load audit log.');
+      setIsAuditLoading(false);
+      return;
+    }
+
+    const auditData = response.data;
+
+    setAuditLogs((currentLogs) => [...currentLogs, ...auditData.items]);
+    setAuditPage(auditData.page);
+    setAuditTotal(auditData.total);
+    setIsAuditLoading(false);
   };
 
   return (
@@ -499,6 +558,62 @@ export function AdminPage() {
               </CardContent>
             </Card>
           </div>
+
+          <Card className="rounded-lg shadow-none">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-md border bg-stone-50 text-stone-700">
+                  <ListChecks className="size-4" />
+                </div>
+                <div>
+                  <CardTitle>Audit log</CardTitle>
+                  <CardDescription>Recent miniApp activity across the platform.</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="overflow-hidden rounded-md border bg-card">
+                {auditLogs.map((log) => (
+                  <div
+                    className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b px-4 py-3 text-sm last:border-b-0"
+                    key={log.id}
+                  >
+                    <Badge className="capitalize" variant="outline">
+                      {formatRole(log.actor_role)}
+                    </Badge>
+                    <span className="min-w-0 break-all text-muted-foreground">{log.actor_email}</span>
+                    <span className={`font-medium ${getAuditActionClassName(log.action)}`}>
+                      {log.action}
+                    </span>
+                    <span className="text-muted-foreground">miniapp</span>
+                    <span className="font-medium text-foreground">{log.miniapp_name}</span>
+                    <Badge variant="secondary">{log.category}</Badge>
+                  </div>
+                ))}
+                {!isLoading && auditLogs.length === 0 && (
+                  <div className="flex min-h-28 items-center justify-center px-4 text-sm text-muted-foreground">
+                    No audit events yet.
+                  </div>
+                )}
+              </div>
+
+              {auditPageCount > 1 && (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">{auditLogs.length}</span> of {auditTotal} loaded
+                  </p>
+                  <Button
+                    disabled={!hasMoreAuditLogs || isAuditLoading}
+                    onClick={() => void loadMoreAuditLogs()}
+                    type="button"
+                    variant="outline"
+                  >
+                    {isAuditLoading ? 'Loading...' : hasMoreAuditLogs ? 'Load more' : 'All loaded'}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </main>
 
