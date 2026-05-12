@@ -5,6 +5,19 @@ CREATE TABLE IF NOT EXISTS miniapps (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     url TEXT NOT NULL,
+    category VARCHAR(80) NOT NULL DEFAULT 'Utilities & Lifestyle'
+        CHECK (category IN (
+            'Finance',
+            'E-commerce',
+            'Food & Delivery',
+            'Transport & Travel',
+            'Government & Public Services',
+            'Education',
+            'Healthcare',
+            'Entertainment & Media',
+            'Business & Productivity',
+            'Utilities & Lifestyle'
+        )),
     status VARCHAR(30) NOT NULL DEFAULT 'pending',
     reject_reason TEXT,
     created_by UUID NOT NULL,
@@ -14,4 +27,5 @@ CREATE TABLE IF NOT EXISTS miniapps (
 );
 
 CREATE INDEX IF NOT EXISTS idx_miniapps_status ON miniapps(status);
+CREATE INDEX IF NOT EXISTS idx_miniapps_category ON miniapps(category);
 CREATE INDEX IF NOT EXISTS idx_miniapps_created_by ON miniapps(created_by);
