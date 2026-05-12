@@ -8,8 +8,8 @@ import {
   ExternalLink,
   Heart,
   PauseCircle,
-  Pencil,
   PlayCircle,
+  Settings,
 } from 'lucide-react';
 
 import { Badge } from 'components/ui/badge';
@@ -411,72 +411,73 @@ export const MiniApp = ({
         </div>
       </CardContent>
 
-      <CardFooter className="flex-wrap justify-between gap-2 border-t pt-4">
-        <div className="flex gap-1">
-          {isActive && (
-            <Dialog open={isIntegrationOpen} onOpenChange={setIsIntegrationOpen}>
-              <DialogTrigger asChild>
-                <Button aria-label="Open integration snippets" size="icon-sm" type="button" variant="ghost">
-                  <Cable />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Integration</DialogTitle>
-                  <DialogDescription>
-                    {miniapp.description || 'Embed snippets for this miniapp.'}
-                  </DialogDescription>
-                </DialogHeader>
+      <CardFooter className="border-t pt-4">
+        <div className="grid w-full gap-2">
+          <div className="flex items-center gap-1">
+            {isActive && (
+              <Dialog open={isIntegrationOpen} onOpenChange={setIsIntegrationOpen}>
+                <DialogTrigger asChild>
+                  <Button aria-label="Open integration snippets" size="icon-sm" type="button" variant="ghost">
+                    <Cable />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Integration</DialogTitle>
+                    <DialogDescription>
+                      {miniapp.description || 'Embed snippets for this miniapp.'}
+                    </DialogDescription>
+                  </DialogHeader>
 
-                <div className="grid gap-4">
-                  <SnippetBlock
-                    code={iframeCode}
-                    copied={copiedSnippet === 'iframe'}
-                    label="iframe"
-                    onCopy={() => void copyCode('iframe', iframeCode)}
-                  />
+                  <div className="grid gap-4">
+                    <SnippetBlock
+                      code={iframeCode}
+                      copied={copiedSnippet === 'iframe'}
+                      label="iframe"
+                      onCopy={() => void copyCode('iframe', iframeCode)}
+                    />
 
-                  <SnippetBlock
-                    code={webviewCode}
-                    copied={copiedSnippet === 'webview'}
-                    label="webview"
-                    onCopy={() => void copyCode('webview', webviewCode)}
-                  />
-                </div>
+                    <SnippetBlock
+                      code={webviewCode}
+                      copied={copiedSnippet === 'webview'}
+                      label="webview"
+                      onCopy={() => void copyCode('webview', webviewCode)}
+                    />
+                  </div>
 
-                <DialogFooter className="min-w-0 items-center sm:justify-between">
-                  <p className="min-w-0 max-w-full flex-1 truncate text-sm text-muted-foreground">{miniapp.url}</p>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
+                  <DialogFooter className="min-w-0 items-center sm:justify-between">
+                    <p className="min-w-0 max-w-full flex-1 truncate text-sm text-muted-foreground">{miniapp.url}</p>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
 
-          <Button
-            aria-label={miniapp.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-            onClick={() => void onToggleFavorite(miniapp.id)}
-          >
-            <Heart className={cn(miniapp.is_favorite && 'fill-red-500 text-red-500')} />
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap justify-end gap-1">
-          {isAdmin && statusAction && StatusActionIcon && (
             <Button
-              disabled={isStatusUpdating}
-              size="sm"
+              aria-label={miniapp.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+              size="icon-sm"
               type="button"
-              variant={statusAction.variant}
-              onClick={() => updateStatus(statusAction.action)}
+              variant="ghost"
+              onClick={() => void onToggleFavorite(miniapp.id)}
             >
-              <StatusActionIcon />
-              {isStatusUpdating ? 'Updating' : statusAction.label}
+              <Heart className={cn(miniapp.is_favorite && 'fill-red-500 text-red-500')} />
             </Button>
-          )}
-          {isActive && (
-            <>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {isAdmin && statusAction && StatusActionIcon && (
+              <Button
+                className="shrink-0"
+                size="sm"
+                type="button"
+                variant={statusAction.variant}
+                disabled={isStatusUpdating}
+                onClick={() => updateStatus(statusAction.action)}
+              >
+                <StatusActionIcon />
+                {isStatusUpdating ? 'Updating' : statusAction.label}
+              </Button>
+            )}
+            {isActive && (
               <Dialog
                 open={isPreviewOpen}
                 onOpenChange={(open) => {
@@ -489,7 +490,13 @@ export const MiniApp = ({
                   }
                 }}
               >
-                <Button size="sm" type="button" variant="outline" onClick={() => void previewMiniapp()}>
+                <Button
+                  className="shrink-0"
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() => void previewMiniapp()}
+                >
                   <AppWindow />
                   Preview
                 </Button>
@@ -535,78 +542,76 @@ export const MiniApp = ({
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-              <Button aria-label="Launch miniapp" size="icon-sm" type="button" variant="ghost" onClick={launchMiniapp}>
-                <ExternalLink />
-              </Button>
-            </>
-          )}
-          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-            <DialogTrigger asChild>
-              <Button
-                aria-label="Open miniapp settings"
-                size="icon-sm"
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  setSettingsForm({
-                    title: miniapp.title,
-                    description: miniapp.description ?? '',
-                    url: miniapp.url,
-                  })
-                }
-              >
-                <Pencil />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <form className="grid gap-5" onSubmit={saveSettings}>
-                <DialogHeader>
-                  <DialogTitle>Settings</DialogTitle>
-                  <DialogDescription>Update the miniapp name, description, and URL.</DialogDescription>
-                </DialogHeader>
+            )}
+            <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  aria-label="Open miniapp settings"
+                  className="shrink-0"
+                  size="icon-sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setSettingsForm({
+                      title: miniapp.title,
+                      description: miniapp.description ?? '',
+                      url: miniapp.url,
+                    })
+                  }
+                >
+                  <Settings />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <form className="grid gap-5" onSubmit={saveSettings}>
+                  <DialogHeader>
+                    <DialogTitle>Settings</DialogTitle>
+                    <DialogDescription>Update the miniapp name, description, and URL.</DialogDescription>
+                  </DialogHeader>
 
-                <div className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor={`settings-title-${miniapp.id}`}>App name</Label>
-                    <Input
-                      id={`settings-title-${miniapp.id}`}
-                      onChange={(event) =>
-                        setSettingsForm((current) => ({ ...current, title: event.target.value }))
-                      }
-                      required
-                      value={settingsForm.title}
-                    />
+                  <div className="grid gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor={`settings-title-${miniapp.id}`}>App name</Label>
+                      <Input
+                        id={`settings-title-${miniapp.id}`}
+                        onChange={(event) =>
+                          setSettingsForm((current) => ({ ...current, title: event.target.value }))
+                        }
+                        required
+                        value={settingsForm.title}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor={`settings-description-${miniapp.id}`}>Description</Label>
+                      <Input
+                        id={`settings-description-${miniapp.id}`}
+                        onChange={(event) =>
+                          setSettingsForm((current) => ({ ...current, description: event.target.value }))
+                        }
+                        value={settingsForm.description}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor={`settings-url-${miniapp.id}`}>URL</Label>
+                      <Input
+                        id={`settings-url-${miniapp.id}`}
+                        onChange={(event) =>
+                          setSettingsForm((current) => ({ ...current, url: event.target.value }))
+                        }
+                        required
+                        type="url"
+                        value={settingsForm.url}
+                      />
+                    </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor={`settings-description-${miniapp.id}`}>Description</Label>
-                    <Input
-                      id={`settings-description-${miniapp.id}`}
-                      onChange={(event) =>
-                        setSettingsForm((current) => ({ ...current, description: event.target.value }))
-                      }
-                      value={settingsForm.description}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor={`settings-url-${miniapp.id}`}>URL</Label>
-                    <Input
-                      id={`settings-url-${miniapp.id}`}
-                      onChange={(event) =>
-                        setSettingsForm((current) => ({ ...current, url: event.target.value }))
-                      }
-                      required
-                      type="url"
-                      value={settingsForm.url}
-                    />
-                  </div>
-                </div>
 
-                <DialogFooter>
-                  <Button type="submit">Save</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <DialogFooter>
+                    <Button type="submit">Save</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </CardFooter>
     </Card>
