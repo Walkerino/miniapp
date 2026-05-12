@@ -39,6 +39,7 @@ type RefreshTokenRepository interface {
 	Create(session *models.RefreshSession) error
 	GetByHash(tokenHash string) (*models.RefreshSession, error)
 	RevokeByHash(tokenHash string) error
+	RevokeByUserID(userID string) error
 }
 
 type UserRepository interface {
@@ -49,6 +50,9 @@ type UserRepository interface {
 	List(page, limit int, role, search string) ([]models.User, int, error)
 	SetRoleByEmail(email, role string) (*models.User, error)
 	SetActive(id string, active bool) (*models.User, error)
+	UpdateName(id string, name *string) (*models.User, error)
+	UpdateEmail(id, email string) (*models.User, error)
+	UpdatePasswordHash(id, passwordHash string) (*models.User, error)
 }
 
 type AdminActionRepository interface {
@@ -158,21 +162,99 @@ func (s *Service) Logout(refreshToken string) error {
 }
 
 func (s *Service) Me(accessToken string) (*pkg_dto.UserResponse, error) {
-	claims, err := s.jwt.Validate(strings.TrimSpace(accessToken))
+	user, err := s.authenticatedUser(accessToken)
 	if err != nil {
 		return nil, err
 	}
 
-	user, err := s.usersRepo.GetUserByID(claims.UserID)
+	resp := userResponse(user)
+	return &resp, nil
+}
+
+func (s *Service) UpdateName(accessToken, name string) (*pkg_dto.UserResponse, error) {
+	user, err := s.authenticatedUser(accessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	updated, err := s.usersRepo.UpdateName(user.ID.String(), nullableString(name))
 	if err != nil {
 		return nil, ErrUserNotFound
 	}
-	if !user.IsActive {
-		return nil, ErrInactiveUser
+
+	resp := userResponse(updated)
+	return &resp, nil
+}
+
+func (s *Service) UpdateEmail(accessToken, email, currentPassword string) (*pkg_dto.UserResponse, error) {
+	user, err := s.authenticatedUser(accessToken)
+	if err != nil {
+		return nil, err
+	}
+	if ok := s.hasher.Compare(currentPassword, user.PasswordHash); !ok {
+		return nil, ErrInvalidCredentials
 	}
 
-	resp := userResponse(user)
+	email = normalizeEmail(email)
+	if email != user.Email {
+		exists, err := s.usersRepo.ExistsByEmail(email)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, ErrEmailAlreadyExists
+		}
+	}
+
+	updated, err := s.usersRepo.UpdateEmail(user.ID.String(), email)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+	if err := s.tokensRepo.RevokeByUserID(user.ID.String()); err != nil {
+		return nil, err
+	}
+
+	resp := userResponse(updated)
 	return &resp, nil
+}
+
+func (s *Service) UpdatePassword(accessToken, currentPassword, newPassword string) (*pkg_dto.UserResponse, error) {
+	user, err := s.authenticatedUser(accessToken)
+	if err != nil {
+		return nil, err
+	}
+	if ok := s.hasher.Compare(currentPassword, user.PasswordHash); !ok {
+		return nil, ErrInvalidCredentials
+	}
+
+	hash, err := s.hasher.Hash(newPassword)
+	if err != nil {
+		return nil, err
+	}
+	updated, err := s.usersRepo.UpdatePasswordHash(user.ID.String(), hash)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+	if err := s.tokensRepo.RevokeByUserID(user.ID.String()); err != nil {
+		return nil, err
+	}
+
+	resp := userResponse(updated)
+	return &resp, nil
+}
+
+func (s *Service) DeleteOwnAccount(accessToken, currentPassword string) error {
+	user, err := s.authenticatedUser(accessToken)
+	if err != nil {
+		return err
+	}
+	if ok := s.hasher.Compare(currentPassword, user.PasswordHash); !ok {
+		return ErrInvalidCredentials
+	}
+	if _, err := s.usersRepo.SetActive(user.ID.String(), false); err != nil {
+		return ErrUserNotFound
+	}
+	return s.tokensRepo.RevokeByUserID(user.ID.String())
 }
 
 func (s *Service) ValidateAccessToken(accessToken string) (*pkg_dto.ValidateResponse, error) {
@@ -318,7 +400,7 @@ func (s *Service) requireAdmin(accessToken string) error {
 	return err
 }
 
-func (s *Service) adminUser(accessToken string) (*models.User, error) {
+func (s *Service) authenticatedUser(accessToken string) (*models.User, error) {
 	claims, err := s.jwt.Validate(strings.TrimSpace(accessToken))
 	if err != nil {
 		return nil, err
@@ -330,6 +412,15 @@ func (s *Service) adminUser(accessToken string) (*models.User, error) {
 	}
 	if !user.IsActive {
 		return nil, ErrInactiveUser
+	}
+
+	return user, nil
+}
+
+func (s *Service) adminUser(accessToken string) (*models.User, error) {
+	user, err := s.authenticatedUser(accessToken)
+	if err != nil {
+		return nil, err
 	}
 	if user.Role != "admin" {
 		return nil, ErrForbidden
