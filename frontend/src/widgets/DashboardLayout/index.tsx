@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 import { LayoutDashboard, LogOut, PanelsTopLeft, User } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { Avatar, AvatarFallback } from 'components/ui/avatar';
 import {
@@ -18,12 +18,13 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from 'components/ui/sidebar';
+import { sessionStore } from 'entities/session';
 import { routesMasks } from 'shared/config/routesMasks';
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: routesMasks.main.create() },
   { icon: PanelsTopLeft, label: 'MiniApps', href: routesMasks.miniapps.list() },
-  { icon: User, label: 'Profile', href: routesMasks.main.create() },
+  { icon: User, label: 'Profile', href: routesMasks.profile.create() },
 ];
 
 type DashboardLayoutProps = {
@@ -45,7 +46,13 @@ function getUserInitials(userName: string) {
 
 function AppSidebar({ userName }: { userName: string }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const userInitials = getUserInitials(userName);
+
+  const handleLogout = async () => {
+    await sessionStore.logout();
+    navigate(routesMasks.login.create(), { replace: true });
+  };
 
   return (
     <Sidebar className="h-svh" collapsible="icon">
@@ -101,7 +108,7 @@ function AppSidebar({ userName }: { userName: string }) {
               className="text-red-600 hover:bg-red-50 hover:text-red-700 data-[active=true]:bg-red-50 data-[active=true]:text-red-700"
               tooltip="Logout"
             >
-              <button type="button">
+              <button type="button" onClick={handleLogout}>
                 <LogOut />
                 <span>Logout</span>
               </button>

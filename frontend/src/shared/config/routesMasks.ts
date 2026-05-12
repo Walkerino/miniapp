@@ -11,6 +11,10 @@ export const routesMasks = {
     mask: '/signup',
     create: () => '/signup',
   },
+  profile: {
+    mask: '/profile',
+    create: () => '/profile',
+  },
   miniapps: {
     listMask: '/miniapps',
     legacyListMask: '/miniApps',
