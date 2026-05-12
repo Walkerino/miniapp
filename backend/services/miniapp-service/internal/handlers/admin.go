@@ -91,17 +91,11 @@ func (h *Handler) AdminMiniappByIDHandler(w http.ResponseWriter, r *http.Request
 	case r.Method == http.MethodPost && action == "publish":
 		h.writeStatus(w, user, id, "active")
 	case r.Method == http.MethodPost && action == "reject":
-		var req pkg_dto.RejectMiniappRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "bad_request", "Invalid request body")
-			return
-		}
-		resp, err := h.service.Reject(user, id, req)
-		if err != nil {
+		if err := h.service.Reject(user, id); err != nil {
 			handleServiceError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, resp)
+		writeJSON(w, http.StatusNoContent, nil)
 	case r.Method == http.MethodPost && action == "enable":
 		h.writeStatus(w, user, id, "active")
 	case r.Method == http.MethodPost && action == "disable":

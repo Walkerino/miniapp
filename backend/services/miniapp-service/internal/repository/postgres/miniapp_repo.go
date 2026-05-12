@@ -154,6 +154,21 @@ func (r *MiniappRepository) SetStatusReason(id, userID uuid.UUID, status string,
 	return r.Get(id, userID)
 }
 
+func (r *MiniappRepository) DeletePending(id uuid.UUID) error {
+	result, err := r.db.Exec(`DELETE FROM miniapps WHERE id=$1 AND status='pending'`, id)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *MiniappRepository) Metrics() (*models.AdminMetrics, error) {
 	metrics := &models.AdminMetrics{}
 	err := r.db.QueryRow(
