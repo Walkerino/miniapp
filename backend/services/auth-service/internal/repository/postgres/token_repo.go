@@ -77,3 +77,8 @@ func (r *RefreshTokenRepository) RevokeByHash(tokenHash string) error {
 
 	return nil
 }
+
+func (r *RefreshTokenRepository) RevokeByUserID(userID string) error {
+	_, err := r.db.Exec("UPDATE refresh_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL", userID)
+	return err
+}

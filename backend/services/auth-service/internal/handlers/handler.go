@@ -11,6 +11,10 @@ type Service interface {
 	Refresh(refreshToken, userAgent, ipAddress string) (*pkg_dto.TokenResponse, error)
 	Logout(refreshToken string) error
 	Me(accessToken string) (*pkg_dto.UserResponse, error)
+	UpdateName(accessToken, name string) (*pkg_dto.UserResponse, error)
+	UpdateEmail(accessToken, email, currentPassword string) (*pkg_dto.UserResponse, error)
+	UpdatePassword(accessToken, currentPassword, newPassword string) (*pkg_dto.UserResponse, error)
+	DeleteOwnAccount(accessToken, currentPassword string) error
 	ValidateAccessToken(accessToken string) (*pkg_dto.ValidateResponse, error)
 	ListUsers(adminAccessToken string, page, limit int, role, search string) (*pkg_dto.UserListResponse, error)
 	GetUserByEmail(adminAccessToken, email string) (*pkg_dto.UserResponse, error)
