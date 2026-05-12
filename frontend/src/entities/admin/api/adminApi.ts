@@ -33,6 +33,13 @@ export const adminApi = {
   getMetrics() {
     return customGet<AdminMetricsResponse>('/api/admin/miniapps?metrics=true');
   },
+  getMiniapps(limit = 1000) {
+    // TODO: request a backend aggregate endpoint for exact chart data:
+    // GET /api/admin/miniapps/created-by-day?days=3|7|14|21|30
+    return customGet<AdminMiniappListResponse>(
+      withQuery('/api/admin/miniapps', { page: 1, limit })
+    );
+  },
   getPendingMiniapps(limit = 50) {
     return customGet<AdminMiniappListResponse>(
       withQuery('/api/admin/miniapps', { page: 1, limit, status: 'pending' })

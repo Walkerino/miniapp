@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -13,6 +13,17 @@ import {
   CardTitle,
 } from 'components/ui/card';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from 'components/ui/dialog';
+import { Input } from 'components/ui/input';
+import { Label } from 'components/ui/label';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -24,12 +35,18 @@ import { MiniApp } from 'widgets/MiniAppList/ui/Miniapp';
 
 type StatusFilter = 'all' | MiniappCardData['status'];
 
+type CreateMiniAppData = {
+  title: string;
+  description: string;
+  url: string;
+};
+
 type MiniAppListViewProps = {
   hasMore: boolean;
   isAdmin: boolean;
   isLoadingMore: boolean;
   items: MiniappCardData[];
-  onCreate: () => void;
+  onCreate: (title: string, description: string, url: string) => boolean | Promise<boolean>;
   onDelete: (ids: string[]) => void | Promise<void>;
   onPreview: (id: string) => string | null | Promise<string | null>;
   onLaunch: (id: string) => void | Promise<void>;
@@ -41,6 +58,7 @@ type MiniAppListViewProps = {
   onToggleFavorite: (id: string) => void | Promise<void>;
   page: number;
   pageCount: number;
+  statusFilter: StatusFilter;
   total: number;
 };
 
@@ -61,10 +79,16 @@ export function MiniAppListView({
   onToggleFavorite,
   page,
   pageCount,
+  statusFilter,
   total,
 }: MiniAppListViewProps) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [isSelectMode, setIsSelectMode] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [newMiniApp, setNewMiniApp] = useState<CreateMiniAppData>({
+    title: '',
+    description: '',
+    url: '',
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const visibleItems = useMemo(() => {
@@ -110,8 +134,31 @@ export function MiniAppListView({
     setIsSelectMode(false);
   }
 
+  async function createMiniApp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const title = newMiniApp.title.trim();
+    const description = newMiniApp.description.trim();
+    const url = newMiniApp.url.trim();
+
+    if (!title || !description || !url) {
+      return;
+    }
+
+    const isCreated = await onCreate(title, description, url);
+
+    if (!isCreated) {
+      return;
+    }
+
+    setNewMiniApp({ title: '', description: '', url: '' });
+    setSelectedIds(new Set());
+    setIsSelectMode(false);
+    setIsCreateOpen(false);
+  }
+
   return (
-    <section className="dashboard-shell h-[calc(100svh-48px)] overflow-hidden">
+    <section className="dashboard-shell min-h-[calc(100svh-20px)] md:h-[calc(100svh-48px)] md:overflow-hidden">
       <Card className="border-0 bg-transparent p-0 shadow-none">
         <CardHeader className="gap-4 px-0">
           <div>
@@ -120,7 +167,7 @@ export function MiniAppListView({
               Manage miniapps, launch them, and copy embed snippets.
             </CardDescription>
           </div>
-          <CardAction className="flex flex-wrap justify-end gap-2">
+          <CardAction className="flex flex-wrap justify-end gap-2 max-sm:[&>*]:min-w-0 max-sm:[&>*]:flex-1">
             {selectedCount > 0 && (
               <Button type="button" variant="destructive" onClick={deleteSelected}>
                 <Trash2 />
@@ -130,13 +177,12 @@ export function MiniAppListView({
             <Select
               onValueChange={(value) => {
                 const nextStatusFilter = value as StatusFilter;
-                setStatusFilter(nextStatusFilter);
                 setSelectedIds(new Set());
                 void onStatusFilterChange(nextStatusFilter);
               }}
               value={statusFilter}
             >
-              <SelectTrigger aria-label="Filter by status" className="w-[156px]">
+              <SelectTrigger aria-label="Filter by status" className="w-full sm:w-[156px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -150,18 +196,79 @@ export function MiniAppListView({
             <Button type="button" variant={isSelectMode ? 'secondary' : 'outline'} onClick={toggleSelectMode}>
               {isSelectMode ? 'Cancel' : 'Select'}
             </Button>
-            {!isAdmin && (
-              <Button type="button" onClick={onCreate}>
-                <Plus />
-                New MiniApp
-              </Button>
-            )}
+            <Dialog onOpenChange={setIsCreateOpen} open={isCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="max-sm:w-full" type="button">
+                  <Plus />
+                  New MiniApp
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <form className="grid gap-5" onSubmit={createMiniApp}>
+                  <DialogHeader>
+                    <DialogTitle>Create MiniApp</DialogTitle>
+                    <DialogDescription>
+                      Enter the miniapp details to add it to the dashboard.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="grid gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="miniapp-list-name">App name</Label>
+                      <Input
+                        id="miniapp-list-name"
+                        onChange={(event) =>
+                          setNewMiniApp((current) => ({ ...current, title: event.target.value }))
+                        }
+                        placeholder="Customer Portal"
+                        required
+                        value={newMiniApp.title}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="miniapp-list-description">Description</Label>
+                      <Input
+                        id="miniapp-list-description"
+                        onChange={(event) =>
+                          setNewMiniApp((current) => ({
+                            ...current,
+                            description: event.target.value,
+                          }))
+                        }
+                        placeholder="Short description"
+                        required
+                        value={newMiniApp.description}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="miniapp-list-url">App URL</Label>
+                      <Input
+                        id="miniapp-list-url"
+                        onChange={(event) =>
+                          setNewMiniApp((current) => ({ ...current, url: event.target.value }))
+                        }
+                        placeholder="https://example.com"
+                        required
+                        type="url"
+                        value={newMiniApp.url}
+                      />
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button className="bg-black text-white hover:bg-black/90" type="submit">
+                      Create
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </CardAction>
         </CardHeader>
       </Card>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+      <div className="min-h-0 flex-1 pr-0 md:overflow-y-auto md:pr-1">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-4">
           {visibleItems.length > 0 ? (
             visibleItems.map((miniapp) => (
               <MiniApp

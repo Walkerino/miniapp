@@ -86,7 +86,6 @@ export const ProfilePage = observer(function ProfilePage() {
     <DashboardLayout userName={userName}>
       <main className="dashboard-shell">
         <div>
-          <p className="text-sm text-muted-foreground">Profile</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-normal">Account settings</h1>
         </div>
 

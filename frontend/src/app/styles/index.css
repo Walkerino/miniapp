@@ -954,12 +954,62 @@ select {
 }
 
 @media (max-width: 760px) {
-  .dashboard-inset {
+  .auth-page {
+    align-items: start;
     padding: 12px;
   }
 
+  .auth-card {
+    gap: 18px;
+    padding: 18px;
+  }
+
+  .auth-card__title h1 {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .auth-card__row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .auth-card__socials {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-inset {
+    min-width: 0;
+    padding: 10px;
+  }
+
   .dashboard-shell {
+    gap: 18px;
+    min-width: 0;
     padding: 14px;
+    border-radius: 10px;
+  }
+
+  [data-slot='card'] {
+    gap: 18px;
+  }
+
+  [data-slot='card-header'],
+  [data-slot='card-content'],
+  [data-slot='card-footer'] {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  [data-slot='card-header']:has([data-slot='card-action']) {
+    grid-template-columns: 1fr;
+  }
+
+  [data-slot='card-action'] {
+    grid-column-start: 1;
+    grid-row-start: auto;
+    width: 100%;
+    justify-self: stretch;
   }
 
   .dashboard-hero {
@@ -1008,6 +1058,19 @@ select {
   .dashboard-footer nav {
     flex-wrap: wrap;
     gap: 12px 18px;
+  }
+}
+
+@media (max-width: 420px) {
+  .dashboard-inset {
+    padding: 0;
+  }
+
+  .dashboard-shell {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 

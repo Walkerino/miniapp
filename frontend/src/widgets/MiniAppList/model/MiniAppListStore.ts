@@ -8,6 +8,7 @@ import type { ILocalStore } from 'shared/lib/useLocalStore';
 import type { StatusType } from 'shared/types';
 
 const DEFAULT_PAGE_LIMIT = 20;
+const OWNED_MINIAPPS_PAGE_LIMIT = 100;
 
 function getPlatformApiBase() {
   if (BASE_URL) {
@@ -78,27 +79,71 @@ export class MiniAppListStore implements ILocalStore {
       this._error = null;
     });
 
-    const [currentUserResponse, response] = await Promise.all([
-      miniappApi.getCurrentUser(),
-      miniappApi.getMiniapps(requestParams),
-    ]);
+    const currentUserResponse = await miniappApi.getCurrentUser();
+
+    if (currentUserResponse.isError || !currentUserResponse.data) {
+      runInAction(() => {
+        this._isLoading = false;
+        this._isLoadingMore = false;
+        this._currentUserRole = null;
+        this._error = currentUserResponse.errorMessage ?? 'Failed to load current user';
+      });
+      return;
+    }
+
+    const currentUser = currentUserResponse.data;
+
+    requestParams.limit = OWNED_MINIAPPS_PAGE_LIMIT;
+
+    const response = await miniappApi.getMiniapps(requestParams);
+
+    if (response.isError || !response.data) {
+      runInAction(() => {
+        this._isLoading = false;
+        this._isLoadingMore = false;
+        this._currentUserRole = currentUser.role;
+        this._error = response.errorMessage ?? 'Failed to load miniapps';
+      });
+      return;
+    }
+
+    const pageCount = Math.ceil(response.data.total / response.data.limit);
+    const pageResponses =
+      pageCount > 1
+        ? await Promise.all(
+            Array.from({ length: pageCount - 1 }, (_, index) =>
+              miniappApi.getMiniapps({
+                ...requestParams,
+                page: index + 2,
+              }),
+            ),
+          )
+        : [];
+    const failedPage = pageResponses.find((pageResponse) => pageResponse.isError || !pageResponse.data);
+
+    if (failedPage) {
+      runInAction(() => {
+        this._isLoading = false;
+        this._isLoadingMore = false;
+        this._currentUserRole = currentUser.role;
+        this._error = failedPage.errorMessage ?? 'Failed to load miniapps';
+      });
+      return;
+    }
+
+    const ownedItems = [
+      ...response.data.items,
+      ...pageResponses.flatMap((pageResponse) => pageResponse.data?.items ?? []),
+    ].filter((item) => item.created_by === currentUser.id);
 
     runInAction(() => {
       this._isLoading = false;
       this._isLoadingMore = false;
-      this._currentUserRole = currentUserResponse.data?.role ?? null;
-
-      if (response.isError || !response.data) {
-        this._error = response.errorMessage ?? 'Failed to load miniapps';
-        return;
-      }
-
-      this._items = isLoadingMore
-        ? [...this._items, ...response.data.items]
-        : response.data.items;
-      this._page = response.data.page;
-      this._limit = response.data.limit;
-      this._total = response.data.total;
+      this._currentUserRole = currentUser.role;
+      this._items = isLoadingMore ? [...this._items, ...ownedItems] : ownedItems;
+      this._page = 1;
+      this._limit = Math.max(ownedItems.length, 1);
+      this._total = ownedItems.length;
     });
   }
 
@@ -108,6 +153,36 @@ export class MiniAppListStore implements ILocalStore {
     }
 
     await this.load({ page: this._page + 1 });
+  }
+
+  async createMiniapp(title: string, description: string, url: string) {
+    runInAction(() => {
+      this._error = null;
+    });
+
+    const response = await miniappApi.createMiniapp({
+      title,
+      description,
+      url,
+      status: 'pending',
+    });
+
+    if (response.isError || !response.data) {
+      runInAction(() => {
+        this._error = response.errorMessage ?? 'Failed to create miniapp';
+      });
+      return false;
+    }
+
+    const createdMiniapp = response.data;
+
+    runInAction(() => {
+      this._status = undefined;
+      this._items = [createdMiniapp, ...this._items.filter((item) => item.id !== createdMiniapp.id)];
+      this._total += 1;
+    });
+
+    return true;
   }
 
   async updateStatus(id: string, action: AdminStatusAction) {
@@ -265,6 +340,10 @@ export class MiniAppListStore implements ILocalStore {
 
   get total() {
     return this._total;
+  }
+
+  get status() {
+    return this._status;
   }
 
   get hasMore() {
