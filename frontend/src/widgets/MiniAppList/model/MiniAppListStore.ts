@@ -183,7 +183,7 @@ export class MiniAppListStore implements ILocalStore {
       description,
       url,
       category,
-      status: 'pending',
+      status: this.isAdmin ? 'active' : 'pending',
     });
 
     if (response.isError || !response.data) {

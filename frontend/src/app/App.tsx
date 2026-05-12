@@ -1,9 +1,13 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
 function App() {
+  const location = useLocation();
+
   return (
     <div className="app">
-      <Outlet />
+      <main className="page-transition" key={location.pathname}>
+        <Outlet />
+      </main>
     </div>
   );
 }
