@@ -158,12 +158,9 @@ func (s *Service) AddFavorite(user *pkg_dto.UserContext, id string) (*pkg_dto.Fa
 	if err != nil {
 		return nil, err
 	}
-	app, err := s.miniapps.Get(miniappID, userID)
+	_, err = s.miniapps.Get(miniappID, userID)
 	if err != nil {
 		return nil, mapRepoErr(err)
-	}
-	if app.Status != "active" {
-		return nil, ErrForbidden
 	}
 	createdAt, err := s.miniapps.AddFavorite(userID, miniappID)
 	if err != nil {
