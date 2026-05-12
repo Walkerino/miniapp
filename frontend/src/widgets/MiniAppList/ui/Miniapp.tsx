@@ -33,8 +33,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from 'components/ui/dialog';
-import { Input } from 'components/ui/input';
-import { Label } from 'components/ui/label';
+import { sessionStore } from 'entities/session';
 import type { MiniappCardData } from 'entities/miniapp';
 import { cn } from 'shared/lib/utils';
 
@@ -503,7 +502,6 @@ export const MiniApp = ({
                       value={settingsForm.url}
                     />
                   </div>
-                </div>
 
                 <DialogFooter>
                   <Button type="submit">Save</Button>

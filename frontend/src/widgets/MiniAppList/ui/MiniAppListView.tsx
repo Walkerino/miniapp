@@ -8,6 +8,7 @@ import {
   CardAction,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from 'components/ui/card';
@@ -21,9 +22,12 @@ import {
 import type { MiniappCardData } from 'entities/miniapp';
 import { MiniApp } from 'widgets/MiniAppList/ui/Miniapp';
 
-type StatusFilter = 'all' | 'pending' | 'active' | 'disabled';
+type StatusFilter = 'all' | MiniappCardData['status'];
 
 type MiniAppListViewProps = {
+  hasMore: boolean;
+  isAdmin: boolean;
+  isLoadingMore: boolean;
   items: MiniappCardData[];
   isAdmin: boolean;
   onCreate: () => void;
@@ -34,9 +38,15 @@ type MiniAppListViewProps = {
   onStatusAction: (id: string, action: 'publish' | 'disable' | 'enable') => void | Promise<void>;
   isStatusUpdating: (id: string) => boolean;
   onToggleFavorite: (id: string) => void | Promise<void>;
+  page: number;
+  pageCount: number;
+  total: number;
 };
 
 export function MiniAppListView({
+  hasMore,
+  isAdmin,
+  isLoadingMore,
   items,
   isAdmin,
   onCreate,
@@ -47,16 +57,20 @@ export function MiniAppListView({
   onStatusAction,
   isStatusUpdating,
   onToggleFavorite,
+  page,
+  pageCount,
+  total,
 }: MiniAppListViewProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const visibleItems = useMemo(() => {
+    const roleItems = isAdmin ? items : items.filter((item) => item.status !== 'deleted');
     const filteredItems =
       statusFilter === 'all'
-        ? items
-        : items.filter((item) => item.status === statusFilter);
+        ? roleItems
+        : roleItems.filter((item) => item.status === statusFilter);
 
     return [...filteredItems].sort((first, second) => {
       if (first.is_favorite === second.is_favorite) {
@@ -65,7 +79,7 @@ export function MiniAppListView({
 
       return first.is_favorite ? -1 : 1;
     });
-  }, [items, statusFilter]);
+  }, [isAdmin, items, statusFilter]);
 
   const selectedCount = selectedIds.size;
 
@@ -113,8 +127,10 @@ export function MiniAppListView({
             )}
             <Select
               onValueChange={(value) => {
-                setStatusFilter(value as StatusFilter);
+                const nextStatusFilter = value as StatusFilter;
+                setStatusFilter(nextStatusFilter);
                 setSelectedIds(new Set());
+                void onStatusFilterChange(nextStatusFilter);
               }}
               value={statusFilter}
             >
@@ -126,15 +142,18 @@ export function MiniAppListView({
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="disabled">Disabled</SelectItem>
+                {isAdmin && <SelectItem value="deleted">Deleted</SelectItem>}
               </SelectContent>
             </Select>
             <Button type="button" variant={isSelectMode ? 'secondary' : 'outline'} onClick={toggleSelectMode}>
               {isSelectMode ? 'Cancel' : 'Select'}
             </Button>
-            <Button type="button" onClick={onCreate}>
-              <Plus />
-              New MiniApp
-            </Button>
+            {!isAdmin && (
+              <Button type="button" onClick={onCreate}>
+                <Plus />
+                New MiniApp
+              </Button>
+            )}
           </CardAction>
         </CardHeader>
       </Card>
@@ -166,6 +185,24 @@ export function MiniAppListView({
             </Card>
           )}
         </div>
+
+        {pageCount > 1 && (
+          <CardFooter className="mt-4 flex-wrap justify-between gap-3 border-t px-0 pt-4">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Page {page}</span> of {pageCount}
+              {' - '}
+              {items.length} of {total} loaded
+            </p>
+            <Button
+              disabled={!hasMore || isLoadingMore}
+              onClick={() => void onLoadMore()}
+              type="button"
+              variant="outline"
+            >
+              {isLoadingMore ? 'Loading...' : hasMore ? 'Load more' : 'All loaded'}
+            </Button>
+          </CardFooter>
+        )}
       </div>
     </section>
   );

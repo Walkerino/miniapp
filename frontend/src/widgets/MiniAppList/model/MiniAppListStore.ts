@@ -1,14 +1,49 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 
+import { getAccessToken } from 'api';
+import { BASE_URL } from 'api/config';
 import { miniappApi } from 'entities/miniapp';
 import type { Miniapp, MiniappCardData, MiniappListParams, UserRole } from 'entities/miniapp';
 import type { ILocalStore } from 'shared/lib/useLocalStore';
+import type { StatusType } from 'shared/types';
+
+const DEFAULT_PAGE_LIMIT = 20;
+
+function getPlatformApiBase() {
+  if (BASE_URL) {
+    return BASE_URL;
+  }
+
+  return typeof window === 'undefined' ? '' : window.location.origin;
+}
+
+function withSsoParams(url: string) {
+  try {
+    const launchUrl = new URL(url, window.location.href);
+    const accessToken = getAccessToken();
+    const apiBase = getPlatformApiBase();
+
+    if (accessToken) {
+      launchUrl.searchParams.set('access_token', accessToken);
+    }
+
+    if (apiBase) {
+      launchUrl.searchParams.set('api_base', apiBase);
+      launchUrl.searchParams.set('platform_origin', apiBase);
+    }
+
+    return launchUrl.toString();
+  } catch {
+    return url;
+  }
+}
 
 type AdminStatusAction = 'publish' | 'disable' | 'enable';
 
 export class MiniAppListStore implements ILocalStore {
   private _items: Miniapp[] = [];
   private _isLoading = false;
+  private _isLoadingMore = false;
   private _error: string | null = null;
   private _currentUserRole: UserRole | null = null;
   private _statusActionIds = new Set<string>();
@@ -18,8 +53,24 @@ export class MiniAppListStore implements ILocalStore {
   }
 
   async load(params: MiniappListParams = {}) {
+    const page = params.page ?? 1;
+    const isLoadingMore = page > 1;
+    const requestParams: MiniappListParams = {
+      page,
+      limit: params.limit ?? this._limit,
+    };
+
+    if ('status' in params) {
+      this._status = params.status;
+    }
+
+    if (this._status) {
+      requestParams.status = this._status;
+    }
+
     runInAction(() => {
-      this._isLoading = true;
+      this._isLoading = !isLoadingMore;
+      this._isLoadingMore = isLoadingMore;
       this._error = null;
     });
 
@@ -37,7 +88,12 @@ export class MiniAppListStore implements ILocalStore {
         return;
       }
 
-      this._items = response.data.items;
+      this._items = isLoadingMore
+        ? [...this._items, ...response.data.items]
+        : response.data.items;
+      this._page = response.data.page;
+      this._limit = response.data.limit;
+      this._total = response.data.total;
     });
   }
 
@@ -136,6 +192,7 @@ export class MiniAppListStore implements ILocalStore {
 
     runInAction(() => {
       this._items = this._items.filter((item) => !idSet.has(item.id));
+      this._total = Math.max(this._total - ids.length, 0);
     });
   }
 
@@ -149,7 +206,7 @@ export class MiniAppListStore implements ILocalStore {
       return;
     }
 
-    window.open(response.data.launch_url, '_blank', 'noopener,noreferrer');
+    window.open(withSsoParams(response.data.launch_url), '_blank', 'noopener,noreferrer');
   }
 
   async getMiniappLaunchUrl(id: string) {
@@ -162,7 +219,7 @@ export class MiniAppListStore implements ILocalStore {
       return null;
     }
 
-    return response.data.launch_url;
+    return withSsoParams(response.data.launch_url);
   }
 
   get items(): MiniappCardData[] {
@@ -171,6 +228,10 @@ export class MiniAppListStore implements ILocalStore {
 
   get isLoading() {
     return this._isLoading;
+  }
+
+  get isLoadingMore() {
+    return this._isLoadingMore;
   }
 
   get error() {
@@ -188,6 +249,7 @@ export class MiniAppListStore implements ILocalStore {
   destroy() {
     this._items = [];
     this._isLoading = false;
+    this._isLoadingMore = false;
     this._error = null;
     this._currentUserRole = null;
     this._statusActionIds.clear();

@@ -4,6 +4,7 @@ import { observer } from 'mobx-react-lite';
 import { useNavigate } from 'react-router-dom';
 
 import { Card, CardContent } from 'components/ui/card';
+import { sessionStore } from 'entities/session';
 import { routesMasks } from 'shared/config/routesMasks';
 import { useLocalStore } from 'shared/lib/useLocalStore';
 import { MiniAppListStore } from 'widgets/MiniAppList/model/MiniAppListStore';
@@ -43,16 +44,23 @@ export const MiniAppList = observer(() => {
 
   return (
     <MiniAppListView
+      hasMore={store.hasMore}
+      isAdmin={sessionStore.role === 'admin'}
+      isLoadingMore={store.isLoadingMore}
       items={store.items}
       isAdmin={store.isAdmin}
       onCreate={() => navigate(routesMasks.miniapps.create())}
       onDelete={store.deleteMiniapps}
+      onLoadMore={store.loadNextPage}
       onPreview={store.getMiniappLaunchUrl}
       onLaunch={store.launchMiniapp}
       onUpdateDetails={store.updateMiniappDetails}
       onStatusAction={store.updateStatus}
       isStatusUpdating={store.isStatusUpdating}
       onToggleFavorite={store.toggleFavorite}
+      page={store.page}
+      pageCount={store.pageCount}
+      total={store.total}
     />
   );
 });

@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { sessionStore } from 'entities/session';
 import { MiniappEditorStore } from 'features/miniapp-editor/model/MiniappEditorStore';
 import { MiniappEditorForm } from 'features/miniapp-editor/ui/MiniappEditorForm';
 import { routesMasks } from 'shared/config/routesMasks';
@@ -14,6 +15,7 @@ export const MiniappEditor = observer(() => {
   const { miniappId } = useParams();
   const navigate = useNavigate();
   const store = useLocalStore(() => new MiniappEditorStore());
+  const canChangeStatus = sessionStore.role === 'admin' && !store.isCreateMode;
 
   useEffect(() => {
     void store.load(miniappId);
@@ -33,6 +35,7 @@ export const MiniappEditor = observer(() => {
 
   return (
     <MiniappEditorForm
+      canChangeStatus={canChangeStatus}
       canSubmit={store.canSubmit}
       form={store.form}
       isCreateMode={store.isCreateMode}
