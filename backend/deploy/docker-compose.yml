@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: auth
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-miniapp_auth_db_password}
     ports:
       - "5433:5432"
     volumes:
@@ -27,10 +27,10 @@ services:
         condition: service_healthy
     environment:
       SERVER_ADDR: :8080
-      USER_DB_URL: postgres://postgres:postgres@auth-db:5432/auth?sslmode=disable
-      TOKEN_DB_URL: postgres://postgres:postgres@auth-db:5432/auth?sslmode=disable
-      MIGRATIONS_DB_URL: postgres://postgres:postgres@auth-db:5432/auth?sslmode=disable
-      JWT_SECRET: secret
+      USER_DB_URL: postgres://postgres:${AUTH_DB_PASSWORD:-miniapp_auth_db_password}@auth-db:5432/auth?sslmode=disable
+      TOKEN_DB_URL: postgres://postgres:${AUTH_DB_PASSWORD:-miniapp_auth_db_password}@auth-db:5432/auth?sslmode=disable
+      MIGRATIONS_DB_URL: postgres://postgres:${AUTH_DB_PASSWORD:-miniapp_auth_db_password}@auth-db:5432/auth?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-miniapp_jwt_secret_change_me}
       JWT_ACCESS_TTL: 1h
       JWT_REFRESH_TTL: 720h
       BCRYPT_COST: 12
@@ -46,7 +46,7 @@ services:
     environment:
       POSTGRES_DB: miniapp
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${MINIAPP_DB_PASSWORD:-miniapp_service_db_password}
     ports:
       - "5434:5432"
     volumes:
@@ -68,8 +68,8 @@ services:
         condition: service_healthy
     environment:
       SERVER_ADDR: :8080
-      MINIAPP_DB_URL: postgres://postgres:postgres@miniapp-db:5432/miniapp?sslmode=disable
-      MIGRATIONS_DB_URL: postgres://postgres:postgres@miniapp-db:5432/miniapp?sslmode=disable
+      MINIAPP_DB_URL: postgres://postgres:${MINIAPP_DB_PASSWORD:-miniapp_service_db_password}@miniapp-db:5432/miniapp?sslmode=disable
+      MIGRATIONS_DB_URL: postgres://postgres:${MINIAPP_DB_PASSWORD:-miniapp_service_db_password}@miniapp-db:5432/miniapp?sslmode=disable
       LAUNCH_TOKEN_TTL: 5m
       DB_WAIT_RETRIES: 30
       DB_WAIT_DELAY_SECONDS: 2
