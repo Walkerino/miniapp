@@ -1,0 +1,2 @@
+ALTER TABLE miniapps
+ADD COLUMN IF NOT EXISTS reject_reason TEXT;
