@@ -30,15 +30,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from 'components/ui/select';
-import type { MiniappCardData } from 'entities/miniapp';
+import { miniappCategories } from 'entities/miniapp';
+import type { MiniappCardData, MiniappCategory } from 'entities/miniapp';
 import { MiniApp } from 'widgets/MiniAppList/ui/Miniapp';
 
 type StatusFilter = 'all' | MiniappCardData['status'];
+type CategoryFilter = 'all' | MiniappCategory;
 
 type CreateMiniAppData = {
   title: string;
   description: string;
   url: string;
+  category: MiniappCategory;
 };
 
 type MiniAppListViewProps = {
@@ -46,12 +49,23 @@ type MiniAppListViewProps = {
   isAdmin: boolean;
   isLoadingMore: boolean;
   items: MiniappCardData[];
-  onCreate: (title: string, description: string, url: string) => boolean | Promise<boolean>;
+  onCreate: (
+    title: string,
+    description: string,
+    url: string,
+    category: MiniappCategory
+  ) => boolean | Promise<boolean>;
   onDelete: (ids: string[]) => void | Promise<void>;
   onPreview: (id: string) => string | null | Promise<string | null>;
   onLaunch: (id: string) => void | Promise<void>;
   onLoadMore: () => void | Promise<void>;
-  onUpdateDetails: (id: string, title: string, description: string, url: string) => void | Promise<void>;
+  onUpdateDetails: (
+    id: string,
+    title: string,
+    description: string,
+    url: string,
+    category: MiniappCategory
+  ) => void | Promise<void>;
   onStatusAction: (id: string, action: 'publish' | 'disable' | 'enable') => void | Promise<void>;
   onStatusFilterChange: (status: StatusFilter) => void | Promise<void>;
   isStatusUpdating: (id: string) => boolean;
@@ -88,15 +102,21 @@ export function MiniAppListView({
     title: '',
     description: '',
     url: '',
+    category: miniappCategories[0],
   });
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const visibleItems = useMemo(() => {
     const roleItems = isAdmin ? items : items.filter((item) => item.status !== 'deleted');
-    const filteredItems =
+    const statusItems =
       statusFilter === 'all'
         ? roleItems
         : roleItems.filter((item) => item.status === statusFilter);
+    const filteredItems =
+      categoryFilter === 'all'
+        ? statusItems
+        : statusItems.filter((item) => item.category === categoryFilter);
 
     return [...filteredItems].sort((first, second) => {
       if (first.is_favorite === second.is_favorite) {
@@ -105,7 +125,7 @@ export function MiniAppListView({
 
       return first.is_favorite ? -1 : 1;
     });
-  }, [isAdmin, items, statusFilter]);
+  }, [categoryFilter, isAdmin, items, statusFilter]);
 
   const selectedCount = selectedIds.size;
 
@@ -140,18 +160,20 @@ export function MiniAppListView({
     const title = newMiniApp.title.trim();
     const description = newMiniApp.description.trim();
     const url = newMiniApp.url.trim();
+    const category = newMiniApp.category;
 
     if (!title || !description || !url) {
       return;
     }
 
-    const isCreated = await onCreate(title, description, url);
+    const isCreated = await onCreate(title, description, url, category);
 
     if (!isCreated) {
       return;
     }
 
-    setNewMiniApp({ title: '', description: '', url: '' });
+    setNewMiniApp({ title: '', description: '', url: '', category: miniappCategories[0] });
+    setCategoryFilter('all');
     setSelectedIds(new Set());
     setIsSelectMode(false);
     setIsCreateOpen(false);
@@ -160,14 +182,14 @@ export function MiniAppListView({
   return (
     <section className="dashboard-shell min-h-[calc(100svh-20px)] md:h-[calc(100svh-48px)] md:overflow-hidden">
       <Card className="border-0 bg-transparent p-0 shadow-none">
-        <CardHeader className="gap-4 px-0">
-          <div>
+        <CardHeader className="grid-cols-1 gap-4 px-0 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="min-w-0">
             <CardTitle className="text-2xl tracking-normal">MiniApps</CardTitle>
             <CardDescription className="mt-2">
               Manage miniapps, launch them, and copy embed snippets.
             </CardDescription>
           </div>
-          <CardAction className="flex flex-wrap justify-end gap-2 max-sm:[&>*]:min-w-0 max-sm:[&>*]:flex-1">
+          <CardAction className="col-start-1 row-span-1 row-start-2 flex w-full flex-wrap justify-start gap-2 self-start justify-self-stretch sm:col-start-2 sm:row-start-1 sm:w-auto sm:justify-end sm:justify-self-end max-sm:[&>*]:min-w-0 max-sm:[&>*]:flex-1">
             {selectedCount > 0 && (
               <Button type="button" variant="destructive" onClick={deleteSelected}>
                 <Trash2 />
@@ -253,6 +275,29 @@ export function MiniAppListView({
                         value={newMiniApp.url}
                       />
                     </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="miniapp-list-category">Category</Label>
+                      <Select
+                        onValueChange={(value) =>
+                          setNewMiniApp((current) => ({
+                            ...current,
+                            category: value as MiniappCategory,
+                          }))
+                        }
+                        value={newMiniApp.category}
+                      >
+                        <SelectTrigger id="miniapp-list-category">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {miniappCategories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <DialogFooter>
@@ -264,6 +309,35 @@ export function MiniAppListView({
               </DialogContent>
             </Dialog>
           </CardAction>
+          <div className="col-span-full row-start-3 flex flex-wrap gap-2 sm:row-start-2">
+            <Button
+              className="max-sm:flex-1"
+              size="sm"
+              type="button"
+              variant={categoryFilter === 'all' ? 'default' : 'outline'}
+              onClick={() => {
+                setCategoryFilter('all');
+                setSelectedIds(new Set());
+              }}
+            >
+              All
+            </Button>
+            {miniappCategories.map((category) => (
+              <Button
+                className="max-sm:flex-1"
+                key={category}
+                size="sm"
+                type="button"
+                variant={categoryFilter === category ? 'default' : 'outline'}
+                onClick={() => {
+                  setCategoryFilter(category);
+                  setSelectedIds(new Set());
+                }}
+              >
+                {category}
+              </Button>
+            ))}
+          </div>
         </CardHeader>
       </Card>
 
@@ -289,7 +363,7 @@ export function MiniAppListView({
           ) : (
             <Card className="col-span-full border-dashed">
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                No miniapps found for this status.
+                No miniapps found for these filters.
               </CardContent>
             </Card>
           )}

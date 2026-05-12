@@ -3,7 +3,7 @@ import { makeAutoObservable, runInAction } from 'mobx';
 import { getAccessToken } from 'api';
 import { BASE_URL } from 'api/config';
 import { miniappApi } from 'entities/miniapp';
-import type { Miniapp, MiniappCardData, MiniappListParams, UserRole } from 'entities/miniapp';
+import type { Miniapp, MiniappCardData, MiniappCategory, MiniappListParams, UserRole } from 'entities/miniapp';
 import type { ILocalStore } from 'shared/lib/useLocalStore';
 import type { StatusType } from 'shared/types';
 
@@ -155,7 +155,7 @@ export class MiniAppListStore implements ILocalStore {
     await this.load({ page: this._page + 1 });
   }
 
-  async createMiniapp(title: string, description: string, url: string) {
+  async createMiniapp(title: string, description: string, url: string, category: MiniappCategory) {
     runInAction(() => {
       this._error = null;
     });
@@ -164,6 +164,7 @@ export class MiniAppListStore implements ILocalStore {
       title,
       description,
       url,
+      category,
       status: 'pending',
     });
 
@@ -237,7 +238,13 @@ export class MiniAppListStore implements ILocalStore {
     });
   }
 
-  async updateMiniappDetails(id: string, title: string, description: string, url: string) {
+  async updateMiniappDetails(
+    id: string,
+    title: string,
+    description: string,
+    url: string,
+    category: MiniappCategory
+  ) {
     const item = this._items.find((currentItem) => currentItem.id === id);
 
     if (!item) {
@@ -248,6 +255,7 @@ export class MiniAppListStore implements ILocalStore {
       title,
       description,
       url,
+      category,
       status: item.status,
     });
 

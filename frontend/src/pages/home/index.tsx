@@ -78,8 +78,8 @@ import {
   TableRow,
 } from 'components/ui/table';
 import { sessionStore } from 'entities/session';
-import { miniappApi } from 'entities/miniapp';
-import type { Miniapp } from 'entities/miniapp';
+import { miniappApi, miniappCategories } from 'entities/miniapp';
+import type { Miniapp, MiniappCategory } from 'entities/miniapp';
 import { routesMasks } from 'shared/config/routesMasks';
 import { cn } from 'shared/lib/utils';
 
@@ -96,6 +96,7 @@ type ProjectRow = {
   logo: string;
   title: string;
   description: string;
+  category: MiniappCategory;
   status: VisibleStatus | 'deleted';
   color: string;
   appUrl?: string;
@@ -104,6 +105,12 @@ type ProjectRow = {
 };
 type VisibleProjectRow = Omit<ProjectRow, 'status'> & { status: VisibleStatus };
 type StatusFilter = 'all' | VisibleStatus;
+type CreateMiniAppData = {
+  title: string;
+  description: string;
+  appUrl: string;
+  category: MiniappCategory;
+};
 
 const statusVariants = {
   pending: 'border-amber-200 bg-amber-50 text-amber-700',
@@ -140,6 +147,7 @@ function toVisibleRow(miniapp: Miniapp): VisibleProjectRow | null {
     logo: miniapp.title[0]?.toUpperCase() || 'M',
     title: miniapp.title,
     description: miniapp.description || 'No description',
+    category: miniapp.category,
     status: miniapp.status,
     color: getRowColor(miniapp.status),
     appUrl: miniapp.url,
@@ -406,10 +414,11 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newMiniApp, setNewMiniApp] = useState({
+  const [newMiniApp, setNewMiniApp] = useState<CreateMiniAppData>({
     title: '',
     description: '',
     appUrl: '',
+    category: miniappCategories[0],
   });
   const [settingsMiniApp, setSettingsMiniApp] = useState<{
     title: string;
@@ -461,6 +470,7 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
     const title = newMiniApp.title.trim();
     const description = newMiniApp.description.trim();
     const appUrl = newMiniApp.appUrl.trim();
+    const category = newMiniApp.category;
 
     if (!title || !description || !appUrl) {
       return;
@@ -470,6 +480,7 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
       title,
       description,
       url: appUrl,
+      category,
       status: 'pending',
     });
 
@@ -477,7 +488,7 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
       return;
     }
 
-    setNewMiniApp({ title: '', description: '', appUrl: '' });
+    setNewMiniApp({ title: '', description: '', appUrl: '', category: miniappCategories[0] });
     setStatusFilter('all');
     setCurrentPage(1);
     setIsCreateOpen(false);
@@ -594,6 +605,29 @@ function ProjectsTable({ onReload, rows, setRows }: ProjectsTableProps) {
                           type="url"
                           value={newMiniApp.appUrl}
                         />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="miniapp-category">Category</Label>
+                        <Select
+                          onValueChange={(value) =>
+                            setNewMiniApp((current) => ({
+                              ...current,
+                              category: value as MiniappCategory,
+                            }))
+                          }
+                          value={newMiniApp.category}
+                        >
+                          <SelectTrigger id="miniapp-category">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {miniappCategories.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
 

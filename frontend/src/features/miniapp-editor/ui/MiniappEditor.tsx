@@ -42,6 +42,7 @@ export const MiniappEditor = observer(() => {
       isSaved={store.isSaved}
       isSaving={store.isSaving}
       onBack={() => navigate(routesMasks.main.create())}
+      onCategoryChange={store.setCategory}
       onDescriptionChange={store.setDescription}
       onStatusChange={store.setStatus}
       onSubmit={() => void store.submit()}

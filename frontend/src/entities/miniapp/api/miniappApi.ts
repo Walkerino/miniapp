@@ -123,6 +123,7 @@ async function createMiniapp(data: MiniappFormData): Promise<ApiAnswer<Miniapp>>
           title: data.title,
           description: data.description,
           url: data.url,
+          category: data.category,
         };
 
   return customPost<CreateMiniappRequest, Miniapp>(path, requestData);
@@ -150,12 +151,14 @@ async function updateMiniapp(id: string, data: MiniappFormData): Promise<ApiAnsw
           title: data.title,
           description: data.description,
           url: data.url,
+          category: data.category,
           status: data.status,
         }
       : {
           title: data.title,
           description: data.description,
           url: data.url,
+          category: data.category,
         };
 
   return customPatch<UpdateMiniappRequest, Miniapp>(getMiniappPath(role, id), requestData);
