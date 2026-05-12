@@ -1,6 +1,6 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 
-import { miniappApi } from 'entities/miniapp';
+import { miniappApi, miniappCategories } from 'entities/miniapp';
 import type { MiniappFormData } from 'entities/miniapp';
 import type { ILocalStore } from 'shared/lib/useLocalStore';
 import type { StatusType } from 'shared/types';
@@ -9,6 +9,7 @@ const emptyForm: MiniappFormData = {
   title: '',
   description: '',
   url: '',
+  category: miniappCategories[0],
   status: 'pending',
 };
 
@@ -52,11 +53,12 @@ export class MiniappEditorStore implements ILocalStore {
         return;
       }
 
-      const { title, description, url, status } = response.data;
+      const { title, description, url, category, status } = response.data;
       this._form = {
         title,
         description: description ?? '',
         url,
+        category,
         status,
       };
     });
@@ -74,6 +76,11 @@ export class MiniappEditorStore implements ILocalStore {
 
   setUrl(url: string) {
     this._form = { ...this._form, url };
+    this._isSaved = false;
+  }
+
+  setCategory(category: MiniappFormData['category']) {
+    this._form = { ...this._form, category };
     this._isSaved = false;
   }
 
@@ -106,6 +113,7 @@ export class MiniappEditorStore implements ILocalStore {
         title: response.data.title,
         description: response.data.description ?? '',
         url: response.data.url,
+        category: response.data.category,
         status: response.data.status,
       };
       this._isSaved = true;
@@ -137,7 +145,7 @@ export class MiniappEditorStore implements ILocalStore {
   }
 
   get canSubmit() {
-    return Boolean(this._form.title.trim() && this._form.url.trim());
+    return Boolean(this._form.title.trim() && this._form.url.trim() && this._form.category);
   }
 
   destroy() {

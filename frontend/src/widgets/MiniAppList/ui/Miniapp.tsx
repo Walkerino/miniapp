@@ -18,7 +18,6 @@ import {
   Card,
   CardAction,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -35,8 +34,16 @@ import {
 } from 'components/ui/dialog';
 import { Input } from 'components/ui/input';
 import { Label } from 'components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from 'components/ui/select';
 import { sessionStore } from 'entities/session';
-import type { MiniappCardData } from 'entities/miniapp';
+import { miniappCategories } from 'entities/miniapp';
+import type { MiniappCardData, MiniappCategory } from 'entities/miniapp';
 import { cn } from 'shared/lib/utils';
 
 type MiniAppProps = {
@@ -47,7 +54,13 @@ type MiniAppProps = {
   miniapp: MiniappCardData;
   onLaunch: (id: string) => void | Promise<void>;
   onPreview: (id: string) => string | null | Promise<string | null>;
-  onUpdateDetails: (id: string, title: string, description: string, url: string) => void | Promise<void>;
+  onUpdateDetails: (
+    id: string,
+    title: string,
+    description: string,
+    url: string,
+    category: MiniappCategory
+  ) => void | Promise<void>;
   onSelect: (checked: boolean) => void;
   onStatusAction: (id: string, action: 'publish' | 'disable' | 'enable') => void | Promise<void>;
   onToggleFavorite: (id: string) => void | Promise<void>;
@@ -200,6 +213,7 @@ export const MiniApp = ({
     title: miniapp.title,
     description: miniapp.description ?? '',
     url: miniapp.url,
+    category: miniapp.category,
   });
 
   const defaultIframeCode = useMemo(() => {
@@ -362,12 +376,13 @@ export const MiniApp = ({
     const title = settingsForm.title.trim();
     const description = settingsForm.description.trim();
     const url = settingsForm.url.trim();
+    const category = settingsForm.category;
 
     if (!title || !url) {
       return;
     }
 
-    void onUpdateDetails(miniapp.id, title, description, url);
+    void onUpdateDetails(miniapp.id, title, description, url, category);
     setIsSettingsOpen(false);
   }
 
@@ -389,9 +404,9 @@ export const MiniApp = ({
           )}
           <div className="min-w-0">
             <CardTitle className="truncate text-base">{miniapp.title}</CardTitle>
-            <CardDescription className="mt-2 line-clamp-2 min-h-10">
-              {miniapp.description || 'No description'}
-            </CardDescription>
+            <Badge className="mt-2 max-w-full truncate" variant="secondary">
+              {miniapp.category}
+            </Badge>
           </div>
         </div>
         <CardAction>
@@ -504,7 +519,7 @@ export const MiniApp = ({
                 <DialogContent className="max-h-[calc(100svh-2rem)] w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-6xl">
                   <DialogHeader className="min-w-0 px-6 pb-4 pt-6">
                     <DialogTitle>{miniapp.title}</DialogTitle>
-                    <DialogDescription>Preview runs through launch URL with a temporary token.</DialogDescription>
+                    <DialogDescription>{miniapp.description || 'No description'}</DialogDescription>
                   </DialogHeader>
 
                   <div className="min-w-0 border-y bg-muted/30">
@@ -557,6 +572,7 @@ export const MiniApp = ({
                       title: miniapp.title,
                       description: miniapp.description ?? '',
                       url: miniapp.url,
+                      category: miniapp.category,
                     })
                   }
                 >
@@ -603,6 +619,29 @@ export const MiniApp = ({
                         type="url"
                         value={settingsForm.url}
                       />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor={`settings-category-${miniapp.id}`}>Category</Label>
+                      <Select
+                        onValueChange={(value) =>
+                          setSettingsForm((current) => ({
+                            ...current,
+                            category: value as MiniappCategory,
+                          }))
+                        }
+                        value={settingsForm.category}
+                      >
+                        <SelectTrigger id={`settings-category-${miniapp.id}`}>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {miniappCategories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 

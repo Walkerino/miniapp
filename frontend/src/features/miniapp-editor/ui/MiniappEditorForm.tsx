@@ -1,4 +1,5 @@
-import type { MiniappFormData } from 'entities/miniapp';
+import { miniappCategories } from 'entities/miniapp';
+import type { MiniappCategory, MiniappFormData } from 'entities/miniapp';
 import type { StatusType } from 'shared/types';
 
 import styles from './styles.module.css';
@@ -13,6 +14,7 @@ type MiniappEditorFormProps = {
   isSaved: boolean;
   isSaving: boolean;
   onBack: () => void;
+  onCategoryChange: (category: MiniappCategory) => void;
   onDescriptionChange: (description: string) => void;
   onStatusChange: (status: StatusType) => void;
   onSubmit: () => void;
@@ -28,6 +30,7 @@ export function MiniappEditorForm({
   isSaved,
   isSaving,
   onBack,
+  onCategoryChange,
   onDescriptionChange,
   onStatusChange,
   onSubmit,
@@ -75,6 +78,20 @@ export function MiniappEditorForm({
             onChange={(event) => onUrlChange(event.target.value)}
             placeholder="https://example.com/weather"
           />
+        </label>
+
+        <label className={styles.field}>
+          <span>Category</span>
+          <select
+            value={form.category}
+            onChange={(event) => onCategoryChange(event.target.value as MiniappCategory)}
+          >
+            {miniappCategories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
         </label>
 
         {canChangeStatus && (
