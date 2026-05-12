@@ -35,6 +35,7 @@ func Run(log *logger.Log, cfg *config.Config) {
 	mux.Handle("/api/admin/user", gateway.AdminMiddleware(gateway.AuthProxy("/api", true)))
 	mux.Handle("/api/admin/users", gateway.AdminMiddleware(gateway.AuthProxy("/api", true)))
 	mux.Handle("/api/admin/users/", gateway.AdminMiddleware(gateway.AuthProxy("/api", true)))
+	mux.Handle("/api/admin/audit", gateway.AdminMiddleware(gateway.MiniappProxy("/api")))
 	mux.Handle("/api/admin/miniapps", gateway.AdminMiddleware(gateway.MiniappProxy("/api")))
 	mux.Handle("/api/admin/miniapps/", gateway.AdminMiddleware(gateway.MiniappProxy("/api")))
 

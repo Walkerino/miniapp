@@ -20,6 +20,7 @@ type Service interface {
 	SetStatus(user *pkg_dto.UserContext, id, status string) (*pkg_dto.MiniappResponse, error)
 	Reject(user *pkg_dto.UserContext, id string) error
 	AdminMetrics(user *pkg_dto.UserContext) (*pkg_dto.AdminMetricsResponse, error)
+	AuditLogs(user *pkg_dto.UserContext, page int) (*pkg_dto.AuditLogListResponse, error)
 	Session(launchToken string) (*pkg_dto.MiniappSessionContext, error)
 }
 

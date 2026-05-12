@@ -7,6 +7,26 @@ import (
 	pkg_dto "miniapp-service/internal/pkg"
 )
 
+func (h *Handler) AdminAuditHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		return
+	}
+
+	user, ok := userContext(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized", "Missing user context")
+		return
+	}
+
+	resp, err := h.service.AuditLogs(user, intQuery(r, "page", 1))
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
 func (h *Handler) AdminMiniappsHandler(w http.ResponseWriter, r *http.Request) {
 	user, ok := userContext(r)
 	if !ok {

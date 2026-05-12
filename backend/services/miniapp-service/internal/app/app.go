@@ -20,6 +20,7 @@ func Run(log *logger.Log, cfg *config.Config) {
 	mux.HandleFunc("/miniapps", container.Handler.MiniappsHandler)
 	mux.HandleFunc("/miniapps/", container.Handler.MiniappByIDHandler)
 	mux.HandleFunc("/favorites", container.Handler.FavoritesHandler)
+	mux.HandleFunc("/admin/audit", container.Handler.AdminAuditHandler)
 	mux.HandleFunc("/admin/miniapps", container.Handler.AdminMiniappsHandler)
 	mux.HandleFunc("/admin/miniapps/", container.Handler.AdminMiniappByIDHandler)
 	mux.HandleFunc("/miniapp-sessions/", container.Handler.SessionHandler)

@@ -32,6 +32,18 @@ type AdminMetrics struct {
 	LaunchesThisWeek int
 }
 
+type AuditLog struct {
+	ID          uuid.UUID
+	ActorID     uuid.UUID
+	ActorRole   string
+	ActorEmail  string
+	Action      string
+	MiniappID   uuid.UUID
+	MiniappName string
+	Category    string
+	CreatedAt   time.Time
+}
+
 type LaunchToken struct {
 	ID        uuid.UUID
 	MiniappID uuid.UUID
