@@ -1056,13 +1056,30 @@ components:
         - active
         - disabled
         - deleted
+        - rejected
       example: active
+
+    MiniappCategory:
+      type: string
+      enum:
+        - Finance
+        - E-commerce
+        - Food & Delivery
+        - Transport & Travel
+        - Government & Public Services
+        - Education
+        - Healthcare
+        - Entertainment & Media
+        - Business & Productivity
+        - Utilities & Lifestyle
+      example: Finance
 
     CreateMiniappRequest:
       type: object
       required:
         - title
         - url
+        - category
       properties:
         title:
           type: string
@@ -1074,12 +1091,15 @@ components:
           type: string
           format: uri
           example: https://example.com/weather
+        category:
+          $ref: "#/components/schemas/MiniappCategory"
 
     AdminCreateMiniappRequest:
       type: object
       required:
         - title
         - url
+        - category
         - status
       properties:
         title:
@@ -1092,6 +1112,8 @@ components:
           type: string
           format: uri
           example: https://example.com/weather
+        category:
+          $ref: "#/components/schemas/MiniappCategory"
         status:
           $ref: "#/components/schemas/MiniappStatus"
 
@@ -1108,6 +1130,8 @@ components:
           type: string
           format: uri
           example: https://example.com/new-weather
+        category:
+          $ref: "#/components/schemas/MiniappCategory"
         status:
           $ref: "#/components/schemas/MiniappStatus"
 
@@ -1117,6 +1141,7 @@ components:
         - id
         - title
         - url
+        - category
         - status
         - created_by
         - created_at
@@ -1135,6 +1160,8 @@ components:
           type: string
           format: uri
           example: https://example.com/weather
+        category:
+          $ref: "#/components/schemas/MiniappCategory"
         status:
           $ref: "#/components/schemas/MiniappStatus"
         created_by:

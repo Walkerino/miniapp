@@ -24,6 +24,19 @@ var (
 	ErrBadRequest = errors.New("bad request")
 )
 
+var validMiniappCategories = map[string]struct{}{
+	"Finance":                      {},
+	"E-commerce":                   {},
+	"Food & Delivery":              {},
+	"Transport & Travel":           {},
+	"Government & Public Services": {},
+	"Education":                    {},
+	"Healthcare":                   {},
+	"Entertainment & Media":        {},
+	"Business & Productivity":      {},
+	"Utilities & Lifestyle":        {},
+}
+
 type MiniappRepository interface {
 	List(userID uuid.UUID, page, limit int, status, search string, includeDeleted bool) ([]models.Miniapp, int, error)
 	ListFavorites(userID uuid.UUID, page, limit int) ([]models.Miniapp, int, error)
@@ -71,7 +84,7 @@ func (s *Service) Suggest(user *pkg_dto.UserContext, req pkg_dto.CreateMiniappRe
 	if err != nil {
 		return nil, err
 	}
-	title, description, appURL, err := validateCreate(req.Title, req.Description, req.URL)
+	title, description, appURL, category, err := validateCreate(req.Title, req.Description, req.URL, req.Category)
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +94,7 @@ func (s *Service) Suggest(user *pkg_dto.UserContext, req pkg_dto.CreateMiniappRe
 		Title:       title,
 		Description: description,
 		URL:         appURL,
+		Category:    category,
 		Status:      "pending",
 		CreatedBy:   userID,
 		CreatedAt:   now,
@@ -219,7 +233,7 @@ func (s *Service) AdminCreate(user *pkg_dto.UserContext, req pkg_dto.AdminCreate
 	if err != nil {
 		return nil, err
 	}
-	title, description, appURL, err := validateCreate(req.Title, req.Description, req.URL)
+	title, description, appURL, category, err := validateCreate(req.Title, req.Description, req.URL, req.Category)
 	if err != nil {
 		return nil, err
 	}
@@ -236,6 +250,7 @@ func (s *Service) AdminCreate(user *pkg_dto.UserContext, req pkg_dto.AdminCreate
 		Title:       title,
 		Description: description,
 		URL:         appURL,
+		Category:    category,
 		Status:      status,
 		CreatedBy:   userID,
 		CreatedAt:   now,
@@ -292,6 +307,13 @@ func (s *Service) AdminUpdate(user *pkg_dto.UserContext, id string, req pkg_dto.
 			return nil, err
 		}
 		app.URL = appURL
+	}
+	if req.Category != nil {
+		category, err := validateCategory(*req.Category)
+		if err != nil {
+			return nil, err
+		}
+		app.Category = category
 	}
 	if req.Status != nil {
 		status := strings.TrimSpace(*req.Status)
@@ -427,16 +449,28 @@ func parseUserAndMiniapp(user *pkg_dto.UserContext, id string) (uuid.UUID, uuid.
 	return userID, miniappID, nil
 }
 
-func validateCreate(title string, description *string, rawURL string) (string, *string, string, error) {
+func validateCreate(title string, description *string, rawURL, rawCategory string) (string, *string, string, string, error) {
 	title = strings.TrimSpace(title)
 	if title == "" {
-		return "", nil, "", ErrBadRequest
+		return "", nil, "", "", ErrBadRequest
 	}
 	appURL, err := validateURL(rawURL)
 	if err != nil {
-		return "", nil, "", err
+		return "", nil, "", "", err
 	}
-	return title, cleanDescription(description), appURL, nil
+	category, err := validateCategory(rawCategory)
+	if err != nil {
+		return "", nil, "", "", err
+	}
+	return title, cleanDescription(description), appURL, category, nil
+}
+
+func validateCategory(raw string) (string, error) {
+	category := strings.TrimSpace(raw)
+	if _, ok := validMiniappCategories[category]; !ok {
+		return "", ErrBadRequest
+	}
+	return category, nil
 }
 
 func cleanDescription(description *string) *string {
@@ -538,6 +572,7 @@ func miniappResponse(app *models.Miniapp) pkg_dto.MiniappResponse {
 		Title:         app.Title,
 		Description:   app.Description,
 		URL:           app.URL,
+		Category:      app.Category,
 		Status:        app.Status,
 		RejectReason:  app.RejectReason,
 		CreatedBy:     app.CreatedBy.String(),

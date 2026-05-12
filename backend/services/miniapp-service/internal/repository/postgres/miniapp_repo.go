@@ -62,7 +62,7 @@ func (r *MiniappRepository) listWhere(userID uuid.UUID, page, limit int, whereSQ
 	limitParam := len(args) - 1
 	offsetParam := len(args)
 	rows, err := r.db.Query(
-		`SELECT m.id, m.title, m.description, m.url, m.status, m.reject_reason, m.created_by, m.updated_by,
+		`SELECT m.id, m.title, m.description, m.url, m.category, m.status, m.reject_reason, m.created_by, m.updated_by,
 		       COALESCE(l.launches_count, 0) AS launches_count,
 		       EXISTS (SELECT 1 FROM user_favorites uf WHERE uf.user_id=$`+strconv.Itoa(userParam)+` AND uf.miniapp_id=m.id) AS is_favorite,
 		       m.created_at, m.updated_at
@@ -95,16 +95,16 @@ func (r *MiniappRepository) listWhere(userID uuid.UUID, page, limit int, whereSQ
 
 func (r *MiniappRepository) Create(app *models.Miniapp) error {
 	return r.db.QueryRow(
-		`INSERT INTO miniapps (id, title, description, url, status, reject_reason, created_by, updated_by, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		`INSERT INTO miniapps (id, title, description, url, category, status, reject_reason, created_by, updated_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING created_at, updated_at`,
-		app.ID, app.Title, app.Description, app.URL, app.Status, app.RejectReason, app.CreatedBy, app.UpdatedBy, app.CreatedAt, app.UpdatedAt,
+		app.ID, app.Title, app.Description, app.URL, app.Category, app.Status, app.RejectReason, app.CreatedBy, app.UpdatedBy, app.CreatedAt, app.UpdatedAt,
 	).Scan(&app.CreatedAt, &app.UpdatedAt)
 }
 
 func (r *MiniappRepository) Get(id, userID uuid.UUID) (*models.Miniapp, error) {
 	row := r.db.QueryRow(
-		`SELECT m.id, m.title, m.description, m.url, m.status, m.reject_reason, m.created_by, m.updated_by,
+		`SELECT m.id, m.title, m.description, m.url, m.category, m.status, m.reject_reason, m.created_by, m.updated_by,
 		       COALESCE(l.launches_count, 0),
 		       EXISTS (SELECT 1 FROM user_favorites uf WHERE uf.user_id=$2 AND uf.miniapp_id=m.id),
 		       m.created_at, m.updated_at
@@ -123,10 +123,10 @@ func (r *MiniappRepository) Get(id, userID uuid.UUID) (*models.Miniapp, error) {
 func (r *MiniappRepository) Update(app *models.Miniapp) error {
 	err := r.db.QueryRow(
 		`UPDATE miniapps
-		SET title=$2, description=$3, url=$4, status=$5, reject_reason=$6, updated_by=$7, updated_at=now()
+		SET title=$2, description=$3, url=$4, category=$5, status=$6, reject_reason=$7, updated_by=$8, updated_at=now()
 		WHERE id=$1
 		RETURNING updated_at`,
-		app.ID, app.Title, app.Description, app.URL, app.Status, app.RejectReason, app.UpdatedBy,
+		app.ID, app.Title, app.Description, app.URL, app.Category, app.Status, app.RejectReason, app.UpdatedBy,
 	).Scan(&app.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
@@ -244,6 +244,7 @@ func scanMiniapp(row scanner) (*models.Miniapp, error) {
 		&item.Title,
 		&item.Description,
 		&item.URL,
+		&item.Category,
 		&item.Status,
 		&item.RejectReason,
 		&item.CreatedBy,

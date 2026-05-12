@@ -11,6 +11,7 @@ type Miniapp struct {
 	Title         string
 	Description   *string
 	URL           string
+	Category      string
 	Status        string
 	RejectReason  *string
 	CreatedBy     uuid.UUID

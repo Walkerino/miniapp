@@ -13,12 +13,14 @@ type CreateMiniappRequest struct {
 	Title       string  `json:"title"`
 	Description *string `json:"description"`
 	URL         string  `json:"url"`
+	Category    string  `json:"category"`
 }
 
 type AdminCreateMiniappRequest struct {
 	Title       string  `json:"title"`
 	Description *string `json:"description"`
 	URL         string  `json:"url"`
+	Category    string  `json:"category"`
 	Status      string  `json:"status"`
 }
 
@@ -26,6 +28,7 @@ type UpdateMiniappRequest struct {
 	Title       *string `json:"title"`
 	Description *string `json:"description"`
 	URL         *string `json:"url"`
+	Category    *string `json:"category"`
 	Status      *string `json:"status"`
 }
 
@@ -34,6 +37,7 @@ type MiniappResponse struct {
 	Title         string    `json:"title"`
 	Description   *string   `json:"description"`
 	URL           string    `json:"url"`
+	Category      string    `json:"category"`
 	Status        string    `json:"status"`
 	RejectReason  *string   `json:"reject_reason"`
 	CreatedBy     string    `json:"created_by"`
