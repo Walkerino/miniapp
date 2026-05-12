@@ -4,6 +4,7 @@ import { LayoutDashboard, LogOut, PanelsTopLeft, ShieldCheck, User } from 'lucid
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { Avatar, AvatarFallback } from 'components/ui/avatar';
+import { Badge } from 'components/ui/badge';
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +21,7 @@ import {
 } from 'components/ui/sidebar';
 import { sessionStore } from 'entities/session';
 import { routesMasks } from 'shared/config/routesMasks';
+import { cn } from 'shared/lib/utils';
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: routesMasks.main.create() },
@@ -49,6 +51,11 @@ function AppSidebar({ userName }: { userName: string }) {
   const location = useLocation();
   const navigate = useNavigate();
   const userInitials = getUserInitials(userName);
+  const roleLabel = sessionStore.role === 'admin' ? 'Admin' : 'User';
+  const roleClassName =
+    sessionStore.role === 'admin'
+      ? 'border-red-200 bg-red-50 text-red-700'
+      : 'border-stone-200 bg-stone-100 text-stone-600';
 
   const handleLogout = async () => {
     await sessionStore.logout();
@@ -70,7 +77,9 @@ function AppSidebar({ userName }: { userName: string }) {
           </Avatar>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-medium text-sidebar-foreground">{userName}</p>
-            <p className="text-xs text-sidebar-foreground/60">Workspace</p>
+            <Badge className={cn('mt-1 px-1.5 py-0 text-[10px] leading-4', roleClassName)} variant="outline">
+              {roleLabel}
+            </Badge>
           </div>
         </div>
       </SidebarHeader>
