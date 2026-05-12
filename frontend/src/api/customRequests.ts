@@ -163,13 +163,20 @@ export async function customPatch<TBody, TResponse>(
   }
 }
 
-export async function customDelete<TResponse = void>(path: string): Promise<ApiAnswer<TResponse>> {
+export async function customDelete<TResponse = void, TBody = undefined>(
+  path: string,
+  data?: TBody
+): Promise<ApiAnswer<TResponse>> {
   try {
     const authorizationHeaders = getAuthorizationHeaders(path);
     const response = await fetch(getApiUrl(path), {
       method: 'DELETE',
       credentials: 'include',
-      headers: authorizationHeaders,
+      headers: {
+        ...(data === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...authorizationHeaders,
+      },
+      body: data === undefined ? undefined : JSON.stringify(data),
     });
 
     const status = response.status;

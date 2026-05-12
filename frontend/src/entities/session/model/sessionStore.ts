@@ -20,6 +20,11 @@ export class SessionStore {
     this._user = authResponse.user;
   }
 
+  setUser(user: AuthUser) {
+    this._user = user;
+    this._isAuth = true;
+  }
+
   async checkAuth() {
     if (this._isAuth && this._user) {
       return true;

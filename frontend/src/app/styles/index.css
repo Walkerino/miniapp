@@ -42,6 +42,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
 }
@@ -58,12 +62,107 @@ select {
   font: inherit;
 }
 
+button,
+[role='button'],
+a,
+summary,
+label,
+select,
+input[type='checkbox'],
+input[type='radio'],
+input[type='submit'],
+input[type='button'],
+input[type='reset'] {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled='true'],
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+}
+
+a,
+button,
+[role='button'],
+summary,
+input,
+select,
+textarea,
+[data-slot='button'],
+[data-sidebar='menu-button'] {
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+a:hover {
+  color: color-mix(in srgb, currentColor 82%, var(--muted-foreground));
+}
+
+button:not(:disabled):hover,
+[role='button']:not([aria-disabled='true']):hover,
+summary:hover,
+[data-slot='button']:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+button:not(:disabled):active,
+[role='button']:not([aria-disabled='true']):active,
+a:active {
+  transform: translateY(1px);
+}
+
 #root {
   min-height: 100svh;
 }
 
 .app {
   min-height: 100svh;
+}
+
+.page-transition {
+  min-height: 100svh;
+  animation: page-enter 0.26s ease-out both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .page-transition {
+    animation: none;
+  }
 }
 
 .auth-page {
@@ -195,8 +294,7 @@ select {
   accent-color: #292524;
 }
 
-.auth-card__ghost,
-.auth-card__socials button {
+.auth-card__ghost {
   border: 1px solid #e7e5e4;
   border-radius: 8px;
   color: #44403c;
@@ -231,57 +329,6 @@ select {
 .auth-card__submit:disabled {
   cursor: not-allowed;
   opacity: 0.55;
-}
-
-.auth-card__divider {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 24px;
-  color: #78716c;
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.auth-card__divider span {
-  height: 1px;
-  background: #e7e5e4;
-}
-
-.auth-card__socials {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.auth-card__socials button {
-  display: flex;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 8px 12px;
-}
-
-.auth-card__google,
-.auth-card__github {
-  display: grid;
-  width: 16px;
-  height: 16px;
-  place-items: center;
-  border-radius: 999px;
-  font-size: 11px;
-  line-height: 16px;
-  font-weight: 700;
-}
-
-.auth-card__google {
-  color: #4285f4;
-}
-
-.auth-card__github {
-  color: #fff;
-  background: #181717;
 }
 
 .auth-card__signup {
@@ -972,10 +1019,6 @@ select {
   .auth-card__row {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .auth-card__socials {
-    grid-template-columns: 1fr;
   }
 
   .dashboard-inset {

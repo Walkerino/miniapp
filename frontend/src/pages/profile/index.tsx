@@ -1,7 +1,9 @@
 import { KeyRound, Pencil, Trash2 } from 'lucide-react';
 import { observer } from 'mobx-react-lite';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
+import { userApi } from 'api';
 import { Avatar, AvatarFallback } from 'components/ui/avatar';
 import { Badge } from 'components/ui/badge';
 import { Button } from 'components/ui/button';
@@ -23,6 +25,7 @@ import {
 import { Input } from 'components/ui/input';
 import { Label } from 'components/ui/label';
 import { sessionStore } from 'entities/session';
+import { routesMasks } from 'shared/config/routesMasks';
 import { DashboardLayout } from 'widgets/DashboardLayout';
 
 function getUserInitials(userName: string) {
@@ -63,7 +66,7 @@ const dangerActions = [
     buttonVariant: 'outline' as const,
   },
   {
-    dialog: null,
+    dialog: 'delete-account',
     icon: Trash2,
     title: 'Delete account',
     description: 'Permanently remove this account and all related data.',
@@ -72,15 +75,209 @@ const dangerActions = [
   },
 ];
 
-type ProfileDialog = 'password' | 'personal-info' | null;
+type ProfileDialog = 'password' | 'personal-info' | 'delete-account' | null;
+
+function getErrorMessage(status: number | undefined, fallback: string) {
+  if (!status) {
+    return 'Connection failed';
+  }
+
+  if (status === 400) {
+    return 'Check the entered data';
+  }
+
+  if (status === 401) {
+    return 'Current password is incorrect';
+  }
+
+  if (status === 409) {
+    return 'Email is already registered';
+  }
+
+  return fallback;
+}
 
 export const ProfilePage = observer(function ProfilePage() {
   const [activeDialog, setActiveDialog] = useState<ProfileDialog>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [personalForm, setPersonalForm] = useState({
+    name: '',
+    email: '',
+    currentPassword: '',
+  });
+  const [deletePassword, setDeletePassword] = useState('');
+  const navigate = useNavigate();
   const user = sessionStore.userData;
   const userName = sessionStore.fullName;
   const email = user?.email ?? 'No email';
   const initials = getUserInitials(userName);
   const role = formatRole(sessionStore.role);
+
+  useEffect(() => {
+    setPersonalForm((current) => ({
+      ...current,
+      name: user?.name ?? '',
+      email: user?.email ?? '',
+    }));
+  }, [user?.email, user?.name]);
+
+  function openDialog(dialog: ProfileDialog) {
+    setFormError(null);
+    setActiveDialog(dialog);
+
+    if (dialog === 'personal-info') {
+      setPersonalForm({
+        name: user?.name ?? '',
+        email: user?.email ?? '',
+        currentPassword: '',
+      });
+    }
+
+    if (dialog === 'password') {
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    }
+
+    if (dialog === 'delete-account') {
+      setDeletePassword('');
+    }
+  }
+
+  function closeDialog() {
+    setActiveDialog(null);
+    setFormError(null);
+    setIsSubmitting(false);
+  }
+
+  async function handlePasswordSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError(null);
+
+    if (passwordForm.currentPassword.length < 6 || passwordForm.newPassword.length < 6) {
+      setFormError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (passwordForm.currentPassword === passwordForm.newPassword) {
+      setFormError('New password must be different');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setFormError('Passwords do not match');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const response = await userApi.updatePassword({
+      current_password: passwordForm.currentPassword,
+      new_password: passwordForm.newPassword,
+    });
+    setIsSubmitting(false);
+
+    if (response.isError || !response.data) {
+      setFormError(getErrorMessage(response.status, 'Could not change password'));
+      return;
+    }
+
+    sessionStore.setUser(response.data);
+    closeDialog();
+  }
+
+  async function handlePersonalSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError(null);
+
+    const nextName = personalForm.name.trim();
+    const nextEmail = personalForm.email.trim();
+    const currentName = user?.name ?? '';
+    const currentEmail = user?.email ?? '';
+    const nameChanged = nextName !== currentName;
+    const emailChanged = nextEmail !== currentEmail;
+
+    if (!nextName) {
+      setFormError('Name is required');
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(nextEmail)) {
+      setFormError('Invalid email');
+      return;
+    }
+
+    if (!nameChanged && !emailChanged) {
+      closeDialog();
+      return;
+    }
+
+    if (emailChanged && personalForm.currentPassword.length < 6) {
+      setFormError('Current password is required to change email');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    if (emailChanged) {
+      const emailResponse = await userApi.updateEmail({
+        email: nextEmail,
+        current_password: personalForm.currentPassword,
+      });
+
+      if (emailResponse.isError || !emailResponse.data) {
+        setIsSubmitting(false);
+        setFormError(getErrorMessage(emailResponse.status, 'Could not change email'));
+        return;
+      }
+
+      sessionStore.setUser(emailResponse.data);
+    }
+
+    if (nameChanged) {
+      const nameResponse = await userApi.updateName({ name: nextName });
+
+      if (nameResponse.isError || !nameResponse.data) {
+        setIsSubmitting(false);
+        setFormError(getErrorMessage(nameResponse.status, 'Could not change name'));
+        return;
+      }
+
+      sessionStore.setUser(nameResponse.data);
+    }
+
+    setIsSubmitting(false);
+    closeDialog();
+  }
+
+  async function handleDeleteSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError(null);
+
+    if (deletePassword.length < 6) {
+      setFormError('Current password is required');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const response = await userApi.deleteAccount({ current_password: deletePassword });
+    setIsSubmitting(false);
+
+    if (response.isError) {
+      setFormError(getErrorMessage(response.status, 'Could not delete account'));
+      return;
+    }
+
+    sessionStore.clearSession();
+    navigate(routesMasks.login.create(), { replace: true });
+  }
 
   return (
     <DashboardLayout userName={userName}>
@@ -129,7 +326,7 @@ export const ProfilePage = observer(function ProfilePage() {
                   </div>
                   <Button
                     className="w-full sm:w-auto"
-                    onClick={() => setActiveDialog(action.dialog as ProfileDialog)}
+                    onClick={() => openDialog(action.dialog as ProfileDialog)}
                     type="button"
                     variant={action.buttonVariant}
                   >
@@ -141,32 +338,71 @@ export const ProfilePage = observer(function ProfilePage() {
           </div>
         </section>
 
-        <Dialog onOpenChange={(open) => setActiveDialog(open ? activeDialog : null)} open={activeDialog === 'password'}>
+        <Dialog onOpenChange={(open) => (open ? openDialog('password') : closeDialog())} open={activeDialog === 'password'}>
           <DialogContent>
-            <form className="grid gap-5">
+            <form className="grid gap-5" onSubmit={handlePasswordSubmit}>
               <DialogHeader>
                 <DialogTitle>Change password</DialogTitle>
                 <DialogDescription>Enter your current password and choose a new one.</DialogDescription>
               </DialogHeader>
 
+              {formError && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+                  {formError}
+                </p>
+              )}
+
               <div className="grid gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="current-password">Current password</Label>
-                  <Input id="current-password" autoComplete="current-password" type="password" />
+                  <Input
+                    autoComplete="current-password"
+                    id="current-password"
+                    onChange={(event) =>
+                      setPasswordForm((current) => ({
+                        ...current,
+                        currentPassword: event.target.value,
+                      }))
+                    }
+                    type="password"
+                    value={passwordForm.currentPassword}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="new-password">New password</Label>
-                  <Input id="new-password" autoComplete="new-password" type="password" />
+                  <Input
+                    autoComplete="new-password"
+                    id="new-password"
+                    onChange={(event) =>
+                      setPasswordForm((current) => ({
+                        ...current,
+                        newPassword: event.target.value,
+                      }))
+                    }
+                    type="password"
+                    value={passwordForm.newPassword}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="confirm-password">Confirm new password</Label>
-                  <Input id="confirm-password" autoComplete="new-password" type="password" />
+                  <Input
+                    autoComplete="new-password"
+                    id="confirm-password"
+                    onChange={(event) =>
+                      setPasswordForm((current) => ({
+                        ...current,
+                        confirmPassword: event.target.value,
+                      }))
+                    }
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                  />
                 </div>
               </div>
 
-              <DialogFooter>
-                <Button disabled type="submit">
-                  Save changes
+              <DialogFooter showCloseButton>
+                <Button disabled={isSubmitting} type="submit">
+                  {isSubmitting ? 'Saving...' : 'Save changes'}
                 </Button>
               </DialogFooter>
             </form>
@@ -174,30 +410,103 @@ export const ProfilePage = observer(function ProfilePage() {
         </Dialog>
 
         <Dialog
-          onOpenChange={(open) => setActiveDialog(open ? activeDialog : null)}
+          onOpenChange={(open) => (open ? openDialog('personal-info') : closeDialog())}
           open={activeDialog === 'personal-info'}
         >
           <DialogContent>
-            <form className="grid gap-5">
+            <form className="grid gap-5" onSubmit={handlePersonalSubmit}>
               <DialogHeader>
                 <DialogTitle>Change personal info</DialogTitle>
                 <DialogDescription>Update the name and email shown on your account.</DialogDescription>
               </DialogHeader>
 
+              {formError && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+                  {formError}
+                </p>
+              )}
+
               <div className="grid gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="profile-name">Name</Label>
-                  <Input id="profile-name" defaultValue={user?.name ?? ''} />
+                  <Input
+                    id="profile-name"
+                    onChange={(event) =>
+                      setPersonalForm((current) => ({ ...current, name: event.target.value }))
+                    }
+                    value={personalForm.name}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="profile-email">Email</Label>
-                  <Input id="profile-email" defaultValue={user?.email ?? ''} type="email" />
+                  <Input
+                    id="profile-email"
+                    onChange={(event) =>
+                      setPersonalForm((current) => ({ ...current, email: event.target.value }))
+                    }
+                    type="email"
+                    value={personalForm.email}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="profile-current-password">Current password</Label>
+                  <Input
+                    autoComplete="current-password"
+                    id="profile-current-password"
+                    onChange={(event) =>
+                      setPersonalForm((current) => ({
+                        ...current,
+                        currentPassword: event.target.value,
+                      }))
+                    }
+                    type="password"
+                    value={personalForm.currentPassword}
+                  />
                 </div>
               </div>
 
-              <DialogFooter>
-                <Button disabled type="submit">
-                  Save changes
+              <DialogFooter showCloseButton>
+                <Button disabled={isSubmitting} type="submit">
+                  {isSubmitting ? 'Saving...' : 'Save changes'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          onOpenChange={(open) => (open ? openDialog('delete-account') : closeDialog())}
+          open={activeDialog === 'delete-account'}
+        >
+          <DialogContent>
+            <form className="grid gap-5" onSubmit={handleDeleteSubmit}>
+              <DialogHeader>
+                <DialogTitle>Delete account</DialogTitle>
+                <DialogDescription>
+                  Enter your current password to permanently delete this account.
+                </DialogDescription>
+              </DialogHeader>
+
+              {formError && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+                  {formError}
+                </p>
+              )}
+
+              <div className="grid gap-2">
+                <Label htmlFor="delete-current-password">Current password</Label>
+                <Input
+                  autoComplete="current-password"
+                  id="delete-current-password"
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                  type="password"
+                  value={deletePassword}
+                />
+              </div>
+
+              <DialogFooter showCloseButton>
+                <Button disabled={isSubmitting} type="submit" variant="destructive">
+                  {isSubmitting ? 'Deleting...' : 'Delete account'}
                 </Button>
               </DialogFooter>
             </form>

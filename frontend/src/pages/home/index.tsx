@@ -246,7 +246,6 @@ function formatMetric(value: number) {
 }
 
 function DashboardMetrics({ rows }: MiniAppsChartProps) {
-  const activeCount = rows.filter((row) => row.status === 'active').length;
   const totalLaunches = rows.reduce((sum, row) => sum + row.launchesCount, 0);
   const favoriteCount = rows.filter((row) => row.isFavorite).length;
   const metrics = [
@@ -254,19 +253,16 @@ function DashboardMetrics({ rows }: MiniAppsChartProps) {
       icon: LayoutDashboard,
       label: 'Visible MiniApps',
       value: rows.length,
-      detail: `${activeCount} active`,
     },
     {
       icon: Rocket,
       label: 'Total Launches',
       value: totalLaunches,
-      detail: 'Across loaded miniapps',
     },
     {
       icon: Heart,
       label: 'Favorites',
       value: favoriteCount,
-      detail: 'Marked by current user',
     },
   ];
 
@@ -278,7 +274,6 @@ function DashboardMetrics({ rows }: MiniAppsChartProps) {
             <div>
               <p className="text-sm text-muted-foreground">{metric.label}</p>
               <p className="mt-2 text-3xl font-semibold tracking-normal">{formatMetric(metric.value)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{metric.detail}</p>
             </div>
             <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-stone-50 text-stone-700">
               <metric.icon className="size-5" />
@@ -304,16 +299,13 @@ function MiniAppsChart({ rows }: MiniAppsChartProps) {
       <CardHeader>
         <div>
           <CardTitle>MiniApps Overview</CardTitle>
-          {/* <CardDescription className="mt-2">
-            Status distribution across {total} visible miniapps
-          </CardDescription> */}
         </div>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4 md:grid-cols-[220px_1fr] md:items-end">
           <div>
             <p className="text-4xl font-semibold tracking-normal">{total}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Total visible miniapps</p>
+            <p className="mt-1 text-sm text-muted-foreground">Total MiniApps</p>
           </div>
           <div className="grid h-44 grid-cols-3 items-end gap-4 border-b border-border px-2">
             {chartData.map((item) => (

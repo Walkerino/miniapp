@@ -27,5 +27,4 @@ CREATE TABLE IF NOT EXISTS miniapps (
 );
 
 CREATE INDEX IF NOT EXISTS idx_miniapps_status ON miniapps(status);
-CREATE INDEX IF NOT EXISTS idx_miniapps_category ON miniapps(category);
 CREATE INDEX IF NOT EXISTS idx_miniapps_created_by ON miniapps(created_by);
