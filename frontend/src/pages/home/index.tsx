@@ -15,6 +15,7 @@ import {
   Heart,
   LayoutDashboard,
   LogOut,
+  PanelsTopLeft,
   Plus,
   Rocket,
   Trophy,
@@ -83,8 +84,8 @@ import { cn } from 'shared/lib/utils';
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: 'Dashboard', to: routesMasks.main.create() },
-  { icon: LayoutDashboard, label: 'MiniApps', to: routesMasks.miniapps.list() },
-  { icon: User, label: 'Profile', to: routesMasks.main.create() },
+  { icon: PanelsTopLeft, label: 'MiniApps', to: routesMasks.miniapps.list() },
+  { icon: User, label: 'Profile', to: routesMasks.profile.create() },
 ];
 
 type VisibleStatus = 'pending' | 'active' | 'disabled';
