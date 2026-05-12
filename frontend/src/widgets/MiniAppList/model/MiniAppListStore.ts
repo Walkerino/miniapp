@@ -1,13 +1,17 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 
 import { miniappApi } from 'entities/miniapp';
-import type { Miniapp, MiniappCardData, MiniappListParams } from 'entities/miniapp';
+import type { Miniapp, MiniappCardData, MiniappListParams, UserRole } from 'entities/miniapp';
 import type { ILocalStore } from 'shared/lib/useLocalStore';
+
+type AdminStatusAction = 'publish' | 'disable' | 'enable';
 
 export class MiniAppListStore implements ILocalStore {
   private _items: Miniapp[] = [];
   private _isLoading = false;
   private _error: string | null = null;
+  private _currentUserRole: UserRole | null = null;
+  private _statusActionIds = new Set<string>();
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
@@ -19,10 +23,14 @@ export class MiniAppListStore implements ILocalStore {
       this._error = null;
     });
 
-    const response = await miniappApi.getMiniapps(params);
+    const [currentUserResponse, response] = await Promise.all([
+      miniappApi.getCurrentUser(),
+      miniappApi.getMiniapps(params),
+    ]);
 
     runInAction(() => {
       this._isLoading = false;
+      this._currentUserRole = currentUserResponse.data?.role ?? null;
 
       if (response.isError || !response.data) {
         this._error = response.errorMessage ?? 'Failed to load miniapps';
@@ -30,6 +38,35 @@ export class MiniAppListStore implements ILocalStore {
       }
 
       this._items = response.data.items;
+    });
+  }
+
+  async updateStatus(id: string, action: AdminStatusAction) {
+    runInAction(() => {
+      this._statusActionIds.add(id);
+      this._error = null;
+    });
+
+    const response =
+      action === 'publish'
+        ? await miniappApi.publishMiniapp(id)
+        : action === 'disable'
+          ? await miniappApi.disableMiniapp(id)
+          : await miniappApi.enableMiniapp(id);
+
+    runInAction(() => {
+      this._statusActionIds.delete(id);
+
+      if (response.isError || !response.data) {
+        this._error = response.errorMessage ?? 'Failed to update miniapp status';
+        return;
+      }
+
+      const updatedMiniapp = response.data;
+
+      this._items = this._items.map((currentItem) =>
+        currentItem.id === id ? updatedMiniapp : currentItem
+      );
     });
   }
 
@@ -56,7 +93,7 @@ export class MiniAppListStore implements ILocalStore {
     });
   }
 
-  async renameMiniapp(id: string, title: string, description: string) {
+  async updateMiniappDetails(id: string, title: string, description: string, url: string) {
     const item = this._items.find((currentItem) => currentItem.id === id);
 
     if (!item) {
@@ -66,13 +103,13 @@ export class MiniAppListStore implements ILocalStore {
     const response = await miniappApi.updateMiniapp(id, {
       title,
       description,
-      url: item.url,
+      url,
       status: item.status,
     });
 
     runInAction(() => {
       if (response.isError || !response.data) {
-        this._error = response.errorMessage ?? 'Failed to rename miniapp';
+        this._error = response.errorMessage ?? 'Failed to update miniapp';
         return;
       }
 
@@ -129,7 +166,7 @@ export class MiniAppListStore implements ILocalStore {
   }
 
   get items(): MiniappCardData[] {
-    return this._items;
+    return this._items.filter((item) => item.status !== 'deleted');
   }
 
   get isLoading() {
@@ -140,9 +177,19 @@ export class MiniAppListStore implements ILocalStore {
     return this._error;
   }
 
+  get isAdmin() {
+    return this._currentUserRole === 'admin';
+  }
+
+  isStatusUpdating(id: string) {
+    return this._statusActionIds.has(id);
+  }
+
   destroy() {
     this._items = [];
     this._isLoading = false;
     this._error = null;
+    this._currentUserRole = null;
+    this._statusActionIds.clear();
   }
 }

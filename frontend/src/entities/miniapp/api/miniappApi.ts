@@ -151,6 +151,30 @@ async function deleteMiniapp(id: string): Promise<ApiAnswer<void>> {
   return customDelete<void>(getAdminMiniappPath(id));
 }
 
+async function publishMiniapp(id: string): Promise<ApiAnswer<Miniapp>> {
+  if (shouldUseMockMiniapps) {
+    return mockMiniappApi.publishMiniapp(id);
+  }
+
+  return customPost<void, Miniapp>(`${getAdminMiniappPath(id)}/publish`, undefined);
+}
+
+async function disableMiniapp(id: string): Promise<ApiAnswer<Miniapp>> {
+  if (shouldUseMockMiniapps) {
+    return mockMiniappApi.disableMiniapp(id);
+  }
+
+  return customPost<void, Miniapp>(`${getAdminMiniappPath(id)}/disable`, undefined);
+}
+
+async function enableMiniapp(id: string): Promise<ApiAnswer<Miniapp>> {
+  if (shouldUseMockMiniapps) {
+    return mockMiniappApi.enableMiniapp(id);
+  }
+
+  return customPost<void, Miniapp>(`${getAdminMiniappPath(id)}/enable`, undefined);
+}
+
 async function addFavorite(id: string): Promise<ApiAnswer<FavoriteResponse>> {
   if (shouldUseMockMiniapps) {
     return mockMiniappApi.addFavorite(id);
@@ -179,10 +203,13 @@ export const miniappApi = {
   addFavorite,
   createMiniapp,
   deleteMiniapp,
+  disableMiniapp,
+  enableMiniapp,
   getCurrentUser,
   getMiniappById,
   getMiniapps,
   launchMiniapp,
+  publishMiniapp,
   removeFavorite,
   updateMiniapp,
 };
