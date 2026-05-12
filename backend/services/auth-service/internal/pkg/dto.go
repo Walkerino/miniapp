@@ -27,6 +27,24 @@ type LoginRequest struct {
 	Password string `json:"password" example:"qwerty123"`
 }
 
+type UpdateNameRequest struct {
+	Name string `json:"name" example:"Amir"`
+}
+
+type UpdateEmailRequest struct {
+	Email           string `json:"email" example:"new@mail.com"`
+	CurrentPassword string `json:"current_password" example:"qwerty123"`
+}
+
+type UpdatePasswordRequest struct {
+	CurrentPassword string `json:"current_password" example:"qwerty123"`
+	NewPassword     string `json:"new_password" example:"newpass123"`
+}
+
+type DeleteAccountRequest struct {
+	CurrentPassword string `json:"current_password" example:"qwerty123"`
+}
+
 type ValidateResponse struct {
 	UserID    string    `json:"user_id"`
 	Email     string    `json:"email"`
@@ -54,6 +72,10 @@ type UserListResponse struct {
 }
 
 type PromoteUserRequest struct {
+	Email string `json:"email"`
+}
+
+type GetUserRequest struct {
 	Email string `json:"email"`
 }
 

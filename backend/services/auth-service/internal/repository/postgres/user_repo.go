@@ -164,3 +164,48 @@ func (r *UserRepository) SetActive(id string, active bool) (*models.User, error)
 
 	return user, nil
 }
+
+func (r *UserRepository) UpdateName(id string, name *string) (*models.User, error) {
+	user := &models.User{}
+	err := r.db.QueryRow(
+		`UPDATE users SET name=$2, updated_at=now()
+		WHERE id=$1 AND is_active=true
+		RETURNING id, email, password_hash, name, role, is_active, created_at, updated_at`,
+		id, name,
+	).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.Role, &user.IsActive, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	return user, nil
+}
+
+func (r *UserRepository) UpdateEmail(id, email string) (*models.User, error) {
+	user := &models.User{}
+	err := r.db.QueryRow(
+		`UPDATE users SET email=$2, updated_at=now()
+		WHERE id=$1 AND is_active=true
+		RETURNING id, email, password_hash, name, role, is_active, created_at, updated_at`,
+		id, email,
+	).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.Role, &user.IsActive, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	return user, nil
+}
+
+func (r *UserRepository) UpdatePasswordHash(id, passwordHash string) (*models.User, error) {
+	user := &models.User{}
+	err := r.db.QueryRow(
+		`UPDATE users SET password_hash=$2, updated_at=now()
+		WHERE id=$1 AND is_active=true
+		RETURNING id, email, password_hash, name, role, is_active, created_at, updated_at`,
+		id, passwordHash,
+	).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.Role, &user.IsActive, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return nil, ErrUserNotFound
+	}
+
+	return user, nil
+}

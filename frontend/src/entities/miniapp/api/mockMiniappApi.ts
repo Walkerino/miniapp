@@ -106,6 +106,45 @@ const mockItems: Miniapp[] = [
     created_at: now,
     updated_at: now,
   },
+  {
+    id: '882d9079-59bf-4c23-9f10-8a48df5f0b20',
+    title: 'Expense Review',
+    description: 'Pending finance miniapp',
+    url: 'https://example.com/expenses',
+    status: 'pending',
+    created_by: mockUserId,
+    updated_by: mockUserId,
+    launches_count: 0,
+    is_favorite: false,
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: '882d9079-59bf-4c23-9f10-8a48df5f0b21',
+    title: 'Legacy Reports',
+    description: 'Temporarily disabled reporting miniapp',
+    url: 'https://example.com/reports',
+    status: 'disabled',
+    created_by: mockUserId,
+    updated_by: mockUserId,
+    launches_count: 7,
+    is_favorite: false,
+    created_at: now,
+    updated_at: now,
+  },
+  {
+    id: '882d9079-59bf-4c23-9f10-8a48df5f0b22',
+    title: 'Deleted App',
+    description: 'This item should not be visible on the MiniApps page',
+    url: 'https://example.com/deleted',
+    status: 'deleted',
+    created_by: mockUserId,
+    updated_by: mockUserId,
+    launches_count: 0,
+    is_favorite: false,
+    created_at: now,
+    updated_at: now,
+  },
 ];
 
 function getMockRole(): UserRole {
@@ -140,6 +179,32 @@ function filterMiniapps(items: Miniapp[], params: MiniappListParams) {
 
 function createMockId() {
   return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+}
+
+function setMockMiniappStatus(id: string, status: Miniapp['status']): ApiAnswer<Miniapp> {
+  const itemIndex = mockItems.findIndex((miniapp) => miniapp.id === id);
+
+  if (itemIndex === -1) {
+    return {
+      isError: true,
+      status: 404,
+    };
+  }
+
+  const updatedItem: Miniapp = {
+    ...mockItems[itemIndex],
+    status,
+    updated_by: mockUserId,
+    updated_at: now,
+  };
+
+  mockItems[itemIndex] = updatedItem;
+
+  return {
+    isError: false,
+    status: 200,
+    data: updatedItem,
+  };
 }
 
 export const mockMiniappApi = {
@@ -259,6 +324,18 @@ export const mockMiniappApi = {
       isError: false,
       status: 204,
     };
+  },
+
+  async publishMiniapp(id: string): Promise<ApiAnswer<Miniapp>> {
+    return setMockMiniappStatus(id, 'active');
+  },
+
+  async disableMiniapp(id: string): Promise<ApiAnswer<Miniapp>> {
+    return setMockMiniappStatus(id, 'disabled');
+  },
+
+  async enableMiniapp(id: string): Promise<ApiAnswer<Miniapp>> {
+    return setMockMiniappStatus(id, 'active');
   },
 
   async addFavorite(id: string): Promise<ApiAnswer<FavoriteResponse>> {

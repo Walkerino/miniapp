@@ -12,9 +12,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit3,
+  Heart,
   LayoutDashboard,
   LogOut,
   Plus,
+  Rocket,
+  Settings,
+  Trophy,
   Trash2,
   User,
 } from 'lucide-react';
@@ -93,6 +97,8 @@ type ProjectRow = {
   status: VisibleStatus | 'deleted';
   color: string;
   appUrl?: string;
+  launchesCount: number;
+  isFavorite: boolean;
 };
 type VisibleProjectRow = Omit<ProjectRow, 'status'> & { status: VisibleStatus };
 type StatusFilter = 'all' | VisibleStatus;
@@ -130,6 +136,8 @@ function toVisibleRow(miniapp: Miniapp): VisibleProjectRow | null {
     status: miniapp.status,
     color: getRowColor(miniapp.status),
     appUrl: miniapp.url,
+    launchesCount: miniapp.launches_count,
+    isFavorite: miniapp.is_favorite,
   };
 }
 
@@ -211,6 +219,55 @@ type MiniAppsChartProps = {
   rows: VisibleProjectRow[];
 };
 
+function formatMetric(value: number) {
+  return new Intl.NumberFormat('en-US').format(value);
+}
+
+function DashboardMetrics({ rows }: MiniAppsChartProps) {
+  const activeCount = rows.filter((row) => row.status === 'active').length;
+  const totalLaunches = rows.reduce((sum, row) => sum + row.launchesCount, 0);
+  const favoriteCount = rows.filter((row) => row.isFavorite).length;
+  const metrics = [
+    {
+      icon: LayoutDashboard,
+      label: 'Visible MiniApps',
+      value: rows.length,
+      detail: `${activeCount} active`,
+    },
+    {
+      icon: Rocket,
+      label: 'Total Launches',
+      value: totalLaunches,
+      detail: 'Across loaded miniapps',
+    },
+    {
+      icon: Heart,
+      label: 'Favorites',
+      value: favoriteCount,
+      detail: 'Marked by current user',
+    },
+  ];
+
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {metrics.map((metric) => (
+        <Card key={metric.label}>
+          <CardContent className="flex items-center justify-between gap-4 p-5">
+            <div>
+              <p className="text-sm text-muted-foreground">{metric.label}</p>
+              <p className="mt-2 text-3xl font-semibold tracking-normal">{formatMetric(metric.value)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{metric.detail}</p>
+            </div>
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md border bg-stone-50 text-stone-700">
+              <metric.icon className="size-5" />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 function MiniAppsChart({ rows }: MiniAppsChartProps) {
   const chartData = [
     { status: 'active', label: 'Active', value: rows.filter((row) => row.status === 'active').length },
@@ -254,6 +311,71 @@ function MiniAppsChart({ rows }: MiniAppsChartProps) {
             ))}
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PopularMiniApps({ rows }: MiniAppsChartProps) {
+  const popularRows = [...rows]
+    .filter((row) => row.launchesCount > 0)
+    .sort((first, second) => {
+      const launchesDiff = second.launchesCount - first.launchesCount;
+
+      return launchesDiff || first.title.localeCompare(second.title);
+    })
+    .slice(0, 3);
+  const maxLaunches = popularRows[0]?.launchesCount ?? 1;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div>
+          <CardTitle>Popular MiniApps</CardTitle>
+          <CardDescription className="mt-2">Top 3 by launches</CardDescription>
+        </div>
+        <CardAction>
+          <div className="flex size-9 items-center justify-center rounded-md border bg-stone-50 text-stone-700">
+            <Trophy className="size-5" />
+          </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        {popularRows.length > 0 ? (
+          <div className="grid gap-4">
+            {popularRows.map((row, index) => (
+              <div className="grid gap-2" key={row.id}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-sm font-semibold text-stone-700">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{row.title}</p>
+                      <Badge className={cn('mt-1 capitalize', statusVariants[row.status])} variant="outline">
+                        {row.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-semibold tracking-normal">{formatMetric(row.launchesCount)}</p>
+                    <p className="text-xs text-muted-foreground">launches</p>
+                  </div>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-stone-100">
+                  <div
+                    className="h-full rounded-full bg-stone-900"
+                    style={{ width: `${Math.max((row.launchesCount / maxLaunches) * 100, 8)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex min-h-44 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+            No launches yet.
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -618,25 +740,50 @@ function DashboardContent({ isAdmin, userName }: DashboardContentProps) {
   const [error, setError] = useState<string | null>(null);
 
   const loadMiniapps = useCallback(async () => {
+    const pageSize = 100;
+
     setIsLoading(true);
     setError(null);
 
-    const response = await miniappApi.getMiniapps({ limit: 100 });
-
-    setIsLoading(false);
+    const response = await miniappApi.getMiniapps({ limit: pageSize, page: 1 });
 
     if (response.isError || !response.data) {
+      setIsLoading(false);
       setError(response.errorMessage ?? 'Failed to load miniapps');
       return;
     }
 
-    setRows(response.data.items.map(toVisibleRow).filter((row): row is VisibleProjectRow => Boolean(row)));
+    const pageCount = Math.ceil(response.data.total / pageSize);
+    const pageResponses =
+      pageCount > 1
+        ? await Promise.all(
+            Array.from({ length: pageCount - 1 }, (_, index) =>
+              miniappApi.getMiniapps({ limit: pageSize, page: index + 2 }),
+            ),
+          )
+        : [];
+    const failedPage = pageResponses.find((pageResponse) => pageResponse.isError || !pageResponse.data);
+
+    if (failedPage) {
+      setIsLoading(false);
+      setError(failedPage.errorMessage ?? 'Failed to load miniapps');
+      return;
+    }
+
+    const miniapps = [
+      ...response.data.items,
+      ...pageResponses.flatMap((pageResponse) => pageResponse.data?.items ?? []),
+    ];
+
+    setRows(miniapps.map(toVisibleRow).filter((row): row is VisibleProjectRow => Boolean(row)));
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    void loadMiniapps();
+    queueMicrotask(() => {
+      void loadMiniapps();
+    });
   }, [loadMiniapps]);
-
 
   return (
     <div className="dashboard-shell">
@@ -656,8 +803,12 @@ function DashboardContent({ isAdmin, userName }: DashboardContentProps) {
         </Card>
       ) : (
         <>
-          <MiniAppsChart rows={rows} />
-          <ProjectsTable isAdmin={isAdmin} onReload={loadMiniapps} rows={rows} setRows={setRows} />
+          <DashboardMetrics rows={rows} />
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <MiniAppsChart rows={rows} />
+            <PopularMiniApps rows={rows} />
+          </div>
+          <ProjectsTable onReload={loadMiniapps} rows={rows} setRows={setRows} />
         </>
       )}
     </div>
