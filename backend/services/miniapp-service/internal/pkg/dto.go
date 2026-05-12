@@ -65,6 +65,26 @@ type AdminMetricsResponse struct {
 	LaunchesThisWeek int `json:"launches_this_week"`
 }
 
+type AuditLogResponse struct {
+	ID          string    `json:"id"`
+	ActorID     string    `json:"actor_id"`
+	ActorRole   string    `json:"actor_role"`
+	ActorEmail  string    `json:"actor_email"`
+	Action      string    `json:"action"`
+	MiniappID   string    `json:"miniapp_id"`
+	MiniappName string    `json:"miniapp_name"`
+	Category    string    `json:"category"`
+	Message     string    `json:"message"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type AuditLogListResponse struct {
+	Items []AuditLogResponse `json:"items"`
+	Page  int                `json:"page"`
+	Limit int                `json:"limit"`
+	Total int                `json:"total"`
+}
+
 type LaunchMiniappResponse struct {
 	LaunchURL   string    `json:"launch_url"`
 	LaunchToken string    `json:"launch_token"`

@@ -27,6 +27,8 @@ tags:
     description: Действия обычного пользователя с miniapps
   - name: Admin Miniapps
     description: Админское управление miniapps
+  - name: Admin Audit
+    description: Просмотр audit логов действий пользователей
   - name: Admin Users
     description: Управление пользователями и ролями
   - name: Miniapp Sessions
@@ -636,6 +638,26 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/admin/audit:
+    get:
+      tags:
+        - Admin Audit
+      summary: Get audit logs
+      description: Admin-only endpoint. Возвращает действия всех пользователей по miniapps, по 20 записей на страницу.
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+      responses:
+        "200":
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/admin/users:
     get:
       tags:
@@ -1196,6 +1218,87 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Miniapp"
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 100
+
+    AuditAction:
+      type: string
+      enum:
+        - suggested
+        - launched
+        - favorited
+        - unfavorited
+        - created
+        - updated
+        - published
+        - enabled
+        - disabled
+        - deleted
+        - rejected
+      example: launched
+
+    AuditLog:
+      type: object
+      required:
+        - id
+        - actor_id
+        - actor_role
+        - actor_email
+        - action
+        - miniapp_id
+        - miniapp_name
+        - category
+        - message
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor_id:
+          type: string
+          format: uuid
+        actor_role:
+          $ref: "#/components/schemas/UserRole"
+        actor_email:
+          type: string
+          format: email
+          example: user@example.com
+        action:
+          $ref: "#/components/schemas/AuditAction"
+        miniapp_id:
+          type: string
+          format: uuid
+        miniapp_name:
+          type: string
+          example: Weather App
+        category:
+          $ref: "#/components/schemas/MiniappCategory"
+        message:
+          type: string
+          example: User user@example.com launched miniapp Weather App Finance
+        created_at:
+          type: string
+          format: date-time
+
+    AuditLogListResponse:
+      type: object
+      required:
+        - items
+        - page
+        - limit
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLog"
         page:
           type: integer
           example: 1

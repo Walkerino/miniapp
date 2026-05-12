@@ -51,6 +51,11 @@ type MiniappRepository interface {
 	RemoveFavorite(userID, miniappID uuid.UUID) error
 }
 
+type AuditRepository interface {
+	Create(log *models.AuditLog) error
+	List(page, limit int) ([]models.AuditLog, int, error)
+}
+
 type LaunchRepository interface {
 	CreateToken(token *models.LaunchToken) error
 	CreateLaunch(miniappID, userID uuid.UUID, userAgent, ipAddress string) error
@@ -59,12 +64,13 @@ type LaunchRepository interface {
 
 type Service struct {
 	miniapps MiniappRepository
+	audit    AuditRepository
 	launches LaunchRepository
 	tokenTTL time.Duration
 }
 
-func NewService(miniapps MiniappRepository, launches LaunchRepository, tokenTTL time.Duration) *Service {
-	return &Service{miniapps: miniapps, launches: launches, tokenTTL: tokenTTL}
+func NewService(miniapps MiniappRepository, audit AuditRepository, launches LaunchRepository, tokenTTL time.Duration) *Service {
+	return &Service{miniapps: miniapps, audit: audit, launches: launches, tokenTTL: tokenTTL}
 }
 
 func (s *Service) ListActive(user *pkg_dto.UserContext, page, limit int, search string) (*pkg_dto.MiniappListResponse, error) {
@@ -103,6 +109,7 @@ func (s *Service) Suggest(user *pkg_dto.UserContext, req pkg_dto.CreateMiniappRe
 	if err := s.miniapps.Create(app); err != nil {
 		return nil, err
 	}
+	s.createAuditLog(userID, user, "suggested", app)
 	resp := miniappResponse(app)
 	return &resp, nil
 }
@@ -158,6 +165,7 @@ func (s *Service) Launch(user *pkg_dto.UserContext, id, userAgent, ipAddress str
 	if err := s.launches.CreateLaunch(miniappID, userID, userAgent, ipAddress); err != nil {
 		return nil, err
 	}
+	s.createAuditLog(userID, user, "launched", app)
 
 	launchURL, err := appendLaunchToken(app.URL, rawToken)
 	if err != nil {
@@ -175,7 +183,7 @@ func (s *Service) AddFavorite(user *pkg_dto.UserContext, id string) (*pkg_dto.Fa
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.miniapps.Get(miniappID, userID)
+	app, err := s.miniapps.Get(miniappID, userID)
 	if err != nil {
 		return nil, mapRepoErr(err)
 	}
@@ -183,6 +191,7 @@ func (s *Service) AddFavorite(user *pkg_dto.UserContext, id string) (*pkg_dto.Fa
 	if err != nil {
 		return nil, mapRepoErr(err)
 	}
+	s.createAuditLog(userID, user, "favorited", app)
 	return &pkg_dto.FavoriteResponse{UserID: userID.String(), MiniappID: miniappID.String(), CreatedAt: createdAt}, nil
 }
 
@@ -191,7 +200,15 @@ func (s *Service) RemoveFavorite(user *pkg_dto.UserContext, id string) error {
 	if err != nil {
 		return err
 	}
-	return mapRepoErr(s.miniapps.RemoveFavorite(userID, miniappID))
+	app, err := s.miniapps.Get(miniappID, userID)
+	if err != nil {
+		return mapRepoErr(err)
+	}
+	if err := s.miniapps.RemoveFavorite(userID, miniappID); err != nil {
+		return mapRepoErr(err)
+	}
+	s.createAuditLog(userID, user, "unfavorited", app)
+	return nil
 }
 
 func (s *Service) ListFavorites(user *pkg_dto.UserContext, page, limit int) (*pkg_dto.MiniappListResponse, error) {
@@ -259,6 +276,7 @@ func (s *Service) AdminCreate(user *pkg_dto.UserContext, req pkg_dto.AdminCreate
 	if err := s.miniapps.Create(app); err != nil {
 		return nil, err
 	}
+	s.createAuditLog(userID, user, "created", app)
 	resp := miniappResponse(app)
 	return &resp, nil
 }
@@ -291,6 +309,8 @@ func (s *Service) AdminUpdate(user *pkg_dto.UserContext, id string, req pkg_dto.
 	if err != nil {
 		return nil, mapRepoErr(err)
 	}
+	previousStatus := app.Status
+	auditAction := "updated"
 	if req.Title != nil {
 		title := strings.TrimSpace(*req.Title)
 		if title == "" {
@@ -321,6 +341,9 @@ func (s *Service) AdminUpdate(user *pkg_dto.UserContext, id string, req pkg_dto.
 			return nil, ErrBadRequest
 		}
 		app.Status = status
+		if status != previousStatus {
+			auditAction = actionForStatusChange(previousStatus, status)
+		}
 	}
 	app.UpdatedBy = &userID
 	if err := s.miniapps.Update(app); err != nil {
@@ -330,6 +353,7 @@ func (s *Service) AdminUpdate(user *pkg_dto.UserContext, id string, req pkg_dto.
 	if err != nil {
 		return nil, mapRepoErr(err)
 	}
+	s.createAuditLog(userID, user, auditAction, updated)
 	resp := miniappResponse(updated)
 	return &resp, nil
 }
@@ -350,10 +374,15 @@ func (s *Service) SetStatus(user *pkg_dto.UserContext, id, status string) (*pkg_
 	if !validStatus(status) {
 		return nil, ErrBadRequest
 	}
+	oldApp, err := s.miniapps.Get(miniappID, userID)
+	if err != nil {
+		return nil, mapRepoErr(err)
+	}
 	app, err := s.miniapps.SetStatus(miniappID, userID, status)
 	if err != nil {
 		return nil, mapRepoErr(err)
 	}
+	s.createAuditLog(userID, user, actionForStatusChange(oldApp.Status, status), app)
 	resp := miniappResponse(app)
 	return &resp, nil
 }
@@ -373,7 +402,11 @@ func (s *Service) Reject(user *pkg_dto.UserContext, id string) error {
 	if app.Status != "pending" {
 		return ErrBadRequest
 	}
-	return mapRepoErr(s.miniapps.DeletePending(miniappID))
+	if err := s.miniapps.DeletePending(miniappID); err != nil {
+		return mapRepoErr(err)
+	}
+	s.createAuditLog(userID, user, "rejected", app)
+	return nil
 }
 
 func (s *Service) AdminMetrics(user *pkg_dto.UserContext) (*pkg_dto.AdminMetricsResponse, error) {
@@ -393,6 +426,21 @@ func (s *Service) AdminMetrics(user *pkg_dto.UserContext) (*pkg_dto.AdminMetrics
 		LaunchesToday:    metrics.LaunchesToday,
 		LaunchesThisWeek: metrics.LaunchesThisWeek,
 	}, nil
+}
+
+func (s *Service) AuditLogs(user *pkg_dto.UserContext, page int) (*pkg_dto.AuditLogListResponse, error) {
+	if err := requireAdmin(user); err != nil {
+		return nil, err
+	}
+	if page < 1 {
+		page = 1
+	}
+	const limit = 20
+	items, total, err := s.audit.List(page, limit)
+	if err != nil {
+		return nil, err
+	}
+	return auditLogListResponse(items, page, limit, total), nil
 }
 
 func (s *Service) Session(launchToken string) (*pkg_dto.MiniappSessionContext, error) {
@@ -559,6 +607,71 @@ func listResponse(items []models.Miniapp, page, limit, total int) *pkg_dto.Minia
 		resp.Items = append(resp.Items, miniappResponse(&items[i]))
 	}
 	return resp
+}
+
+func auditLogListResponse(items []models.AuditLog, page, limit, total int) *pkg_dto.AuditLogListResponse {
+	resp := &pkg_dto.AuditLogListResponse{Items: make([]pkg_dto.AuditLogResponse, 0, len(items)), Page: page, Limit: limit, Total: total}
+	for i := range items {
+		resp.Items = append(resp.Items, auditLogResponse(&items[i]))
+	}
+	return resp
+}
+
+func auditLogResponse(log *models.AuditLog) pkg_dto.AuditLogResponse {
+	role := displayRole(log.ActorRole)
+	return pkg_dto.AuditLogResponse{
+		ID:          log.ID.String(),
+		ActorID:     log.ActorID.String(),
+		ActorRole:   log.ActorRole,
+		ActorEmail:  log.ActorEmail,
+		Action:      log.Action,
+		MiniappID:   log.MiniappID.String(),
+		MiniappName: log.MiniappName,
+		Category:    log.Category,
+		Message:     role + " " + log.ActorEmail + " " + log.Action + " miniapp " + log.MiniappName + " " + log.Category,
+		CreatedAt:   log.CreatedAt,
+	}
+}
+
+func (s *Service) createAuditLog(actorID uuid.UUID, user *pkg_dto.UserContext, action string, app *models.Miniapp) {
+	if s.audit == nil || app == nil {
+		return
+	}
+	_ = s.audit.Create(&models.AuditLog{
+		ActorID:     actorID,
+		ActorRole:   user.Role,
+		ActorEmail:  user.Email,
+		Action:      action,
+		MiniappID:   app.ID,
+		MiniappName: app.Title,
+		Category:    app.Category,
+	})
+}
+
+func actionForStatusChange(previousStatus, nextStatus string) string {
+	switch nextStatus {
+	case "active":
+		if previousStatus == "disabled" {
+			return "enabled"
+		}
+		return "published"
+	case "disabled":
+		return "disabled"
+	case "deleted":
+		return "deleted"
+	case "rejected":
+		return "rejected"
+	default:
+		return "updated"
+	}
+}
+
+func displayRole(role string) string {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		return ""
+	}
+	return strings.ToUpper(role[:1]) + role[1:]
 }
 
 func miniappResponse(app *models.Miniapp) pkg_dto.MiniappResponse {
