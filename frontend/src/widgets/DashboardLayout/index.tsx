@@ -1,10 +1,11 @@
 import type { CSSProperties, ReactNode } from 'react';
 
-import { LayoutDashboard, LogOut, PanelsTopLeft, ShieldCheck, User } from 'lucide-react';
+import { LayoutDashboard, LogOut, Menu, PanelsTopLeft, ShieldCheck, User } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { Avatar, AvatarFallback } from 'components/ui/avatar';
 import { Badge } from 'components/ui/badge';
+import { Button } from 'components/ui/button';
 import {
   Sidebar,
   SidebarContent,
@@ -18,6 +19,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
 } from 'components/ui/sidebar';
 import { sessionStore } from 'entities/session';
 import { routesMasks } from 'shared/config/routesMasks';
@@ -50,6 +52,7 @@ function getUserInitials(userName: string) {
 function AppSidebar({ userName }: { userName: string }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isMobile, setOpenMobile } = useSidebar();
   const userInitials = getUserInitials(userName);
   const roleLabel = sessionStore.role === 'admin' ? 'Admin' : 'User';
   const roleClassName =
@@ -59,7 +62,14 @@ function AppSidebar({ userName }: { userName: string }) {
 
   const handleLogout = async () => {
     await sessionStore.logout();
+    setOpenMobile(false);
     navigate(routesMasks.login.create(), { replace: true });
+  };
+
+  const closeMobileSidebar = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
   };
 
   return (
@@ -97,7 +107,7 @@ function AppSidebar({ userName }: { userName: string }) {
                 return (
                   <SidebarMenuItem key={item.label}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
-                      <Link to={item.href}>
+                      <Link onClick={closeMobileSidebar} to={item.href}>
                         <item.icon />
                         <span>{item.label}</span>
                       </Link>
@@ -130,6 +140,19 @@ function AppSidebar({ userName }: { userName: string }) {
   );
 }
 
+export function DashboardMobileNav() {
+  const { toggleSidebar } = useSidebar();
+
+  return (
+    <div className="mb-3 flex items-center gap-3 rounded-lg border bg-background/95 px-3 py-2 shadow-sm md:hidden">
+      <Button aria-label="Open navigation" className="size-9" onClick={toggleSidebar} size="icon" type="button" variant="ghost">
+        <Menu className="size-5" />
+      </Button>
+      <span className="text-sm font-medium text-foreground">Navigation</span>
+    </div>
+  );
+}
+
 export function DashboardLayout({ children, userName }: DashboardLayoutProps) {
   return (
     <SidebarProvider
@@ -137,7 +160,10 @@ export function DashboardLayout({ children, userName }: DashboardLayoutProps) {
       style={{ '--sidebar-width': '238px' } as CSSProperties}
     >
       <AppSidebar userName={userName} />
-      <SidebarInset className="dashboard-inset">{children}</SidebarInset>
+      <SidebarInset className="dashboard-inset">
+        <DashboardMobileNav />
+        {children}
+      </SidebarInset>
     </SidebarProvider>
   );
 }

@@ -68,6 +68,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
 } from 'components/ui/sidebar';
 import {
   Table,
@@ -82,6 +83,7 @@ import { miniappApi, miniappCategories } from 'entities/miniapp';
 import type { Miniapp, MiniappCategory } from 'entities/miniapp';
 import { routesMasks } from 'shared/config/routesMasks';
 import { cn } from 'shared/lib/utils';
+import { DashboardMobileNav } from 'widgets/DashboardLayout';
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: 'Dashboard', to: routesMasks.main.create() },
@@ -163,6 +165,7 @@ type AppSidebarProps = {
 
 function AppSidebar({ userName, onLogout }: AppSidebarProps) {
   const location = useLocation();
+  const { isMobile, setOpenMobile } = useSidebar();
   const userInitials = userName
     .split(' ')
     .filter(Boolean)
@@ -175,6 +178,16 @@ function AppSidebar({ userName, onLogout }: AppSidebarProps) {
     sessionStore.role === 'admin'
       ? 'border-red-200 bg-red-50 text-red-700'
       : 'border-stone-200 bg-stone-100 text-stone-600';
+  const closeMobileSidebar = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
+  const handleLogoutClick = () => {
+    setOpenMobile(false);
+    onLogout();
+  };
 
   return (
     <Sidebar className="h-svh" collapsible="icon">
@@ -205,7 +218,7 @@ function AppSidebar({ userName, onLogout }: AppSidebarProps) {
               {sidebarItems.filter((item) => !item.adminOnly || sessionStore.role === 'admin').map((item) => (
                 <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton asChild isActive={location.pathname === item.to} tooltip={item.label}>
-                    <Link to={item.to}>
+                    <Link onClick={closeMobileSidebar} to={item.to}>
                       <item.icon />
                       <span>{item.label}</span>
                     </Link>
@@ -225,7 +238,7 @@ function AppSidebar({ userName, onLogout }: AppSidebarProps) {
               className="text-red-600 hover:bg-red-50 hover:text-red-700 data-[active=true]:bg-red-50 data-[active=true]:text-red-700"
               tooltip="Logout"
             >
-              <button type="button" onClick={onLogout}>
+              <button type="button" onClick={handleLogoutClick}>
                 <LogOut />
                 <span>Logout</span>
               </button>
@@ -876,6 +889,7 @@ export function HomePage() {
     >
       <AppSidebar userName={userName} onLogout={handleLogout} />
       <SidebarInset className="dashboard-inset">
+        <DashboardMobileNav />
         <DashboardContent userName={userName} />
       </SidebarInset>
     </SidebarProvider>
