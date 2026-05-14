@@ -45,6 +45,7 @@ export const MiniAppList = observer(() => {
       isLoadingMore={store.isLoadingMore}
       items={store.items}
       onCreate={store.createMiniapp}
+      onGenerate={store.generateMiniapp}
       onDelete={store.deleteMiniapps}
       onLoadMore={store.loadNextPage}
       onPreview={store.getMiniappLaunchUrl}
@@ -55,6 +56,7 @@ export const MiniAppList = observer(() => {
       onUpdateDetails={store.updateMiniappDetails}
       onStatusAction={store.updateStatus}
       isStatusUpdating={store.isStatusUpdating}
+      getCreatorName={store.getCreatorName}
       onToggleFavorite={store.toggleFavorite}
       page={store.page}
       pageCount={store.pageCount}

@@ -20,11 +20,12 @@ const userContextKey contextKey = "user_context"
 type Gateway struct {
 	authBase    *url.URL
 	miniappBase *url.URL
+	aiBase      *url.URL
 	client      *http.Client
 	log         *slog.Logger
 }
 
-func NewGateway(authURL, miniappURL string, timeout time.Duration, log *slog.Logger) (*Gateway, error) {
+func NewGateway(authURL, miniappURL, aiURL string, timeout time.Duration, log *slog.Logger) (*Gateway, error) {
 	authBase, err := url.Parse(authURL)
 	if err != nil {
 		return nil, err
@@ -33,9 +34,14 @@ func NewGateway(authURL, miniappURL string, timeout time.Duration, log *slog.Log
 	if err != nil {
 		return nil, err
 	}
+	aiBase, err := url.Parse(aiURL)
+	if err != nil {
+		return nil, err
+	}
 	return &Gateway{
 		authBase:    authBase,
 		miniappBase: miniappBase,
+		aiBase:      aiBase,
 		client:      &http.Client{Timeout: timeout},
 		log:         log,
 	}, nil
@@ -70,6 +76,18 @@ func (g *Gateway) MiniappProxy(stripPrefix string) http.HandlerFunc {
 func (g *Gateway) MiniappPublicProxy(stripPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		g.proxy(w, r, g.miniappBase, stripPrefix)
+	}
+}
+
+func (g *Gateway) AIProxy(stripPrefix string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, ok := userContextFromRequest(r)
+		if !ok {
+			writeError(w, http.StatusUnauthorized, "unauthorized", "Missing user context")
+			return
+		}
+		addUserHeaders(r, ctx)
+		g.proxy(w, r, g.aiBase, stripPrefix)
 	}
 }
 

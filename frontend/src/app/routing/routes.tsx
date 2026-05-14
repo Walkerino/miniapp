@@ -2,6 +2,7 @@ import { Navigate, type RouteObject } from 'react-router-dom';
 
 import App from 'app/App';
 import { AdminPage } from 'pages/admin';
+import { GeneratedAppPage } from 'pages/generated-app';
 import { HomePage } from 'pages/home';
 import { LoginPage } from 'pages/login';
 import { MiniappEditorPage } from 'pages/miniapp-editor';
@@ -65,6 +66,14 @@ export const routes: RouteObject[] = [
         element: (
           <ProtectedRoute>
             <AdminPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: routesMasks.generatedApps.viewMask,
+        element: (
+          <ProtectedRoute>
+            <GeneratedAppPage />
           </ProtectedRoute>
         ),
       },

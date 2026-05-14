@@ -14,7 +14,7 @@ import (
 )
 
 func Run(log *logger.Log, cfg *config.Config) {
-	gateway, err := proxy.NewGateway(cfg.Proxy.AuthServiceURL, cfg.Proxy.MiniappServiceURL, cfg.Request.Timeout, log.Logger)
+	gateway, err := proxy.NewGateway(cfg.Proxy.AuthServiceURL, cfg.Proxy.MiniappServiceURL, cfg.Proxy.AIServiceURL, cfg.Request.Timeout, log.Logger)
 	if err != nil {
 		log.Logger.Error("failed to initialize gateway", "error", err)
 		os.Exit(1)
@@ -43,6 +43,9 @@ func Run(log *logger.Log, cfg *config.Config) {
 	mux.Handle("/api/favorites", gateway.AuthMiddleware(gateway.MiniappProxy("/api")))
 	mux.Handle("/api/miniapps", gateway.AuthMiddleware(gateway.MiniappProxy("/api")))
 	mux.Handle("/api/miniapps/", gateway.AuthMiddleware(gateway.MiniappProxy("/api")))
+	mux.Handle("/api/ai/generate", gateway.AuthMiddleware(gateway.AIProxy("/api")))
+	mux.Handle("/api/ai/generated-apps/", gateway.AuthMiddleware(gateway.AIProxy("/api")))
+	mux.Handle("/api/generated-apps/", gateway.AuthMiddleware(gateway.AIProxy("/api")))
 
 	corsConfig := middleware.CORSConfig{
 		AllowedOrigins:   cfg.CORS.AllowedOrigins,

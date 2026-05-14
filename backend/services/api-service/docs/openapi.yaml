@@ -35,6 +35,8 @@ tags:
     description: Получение контекста запуска miniapp по launch token
   - name: Favorites
     description: Избранные miniapps пользователя
+  - name: AI
+    description: Генерация miniapps через LLM
 
 security:
   - BearerAuth: []
@@ -428,6 +430,69 @@ paths:
                 $ref: "#/components/schemas/MiniappListResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /api/ai/generate:
+    post:
+      tags:
+        - AI
+      summary: Generate miniapp from prompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateMiniappRequest"
+      responses:
+        "201":
+          description: Generated app and pending miniapp were created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedAppResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/ai/generated-apps/{generated_app_id}:
+    get:
+      tags:
+        - AI
+      summary: Get generated app metadata
+      parameters:
+        - $ref: "#/components/parameters/GeneratedAppIdParam"
+      responses:
+        "200":
+          description: Generated app metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedAppResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/generated-apps/{generated_app_id}/config:
+    get:
+      tags:
+        - AI
+      summary: Get generated app config
+      parameters:
+        - $ref: "#/components/parameters/GeneratedAppIdParam"
+      responses:
+        "200":
+          description: Generated app JSON config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedAppConfig"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/admin/miniapps:
     get:
@@ -846,6 +911,14 @@ components:
         type: string
         format: uuid
 
+    GeneratedAppIdParam:
+      name: generated_app_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
     PageParam:
       name: page
       in: query
@@ -1227,6 +1300,81 @@ components:
         total:
           type: integer
           example: 100
+
+    GenerateMiniappRequest:
+      type: object
+      required:
+        - prompt
+      properties:
+        prompt:
+          type: string
+          example: Сделай miniapp для учета расходов
+
+    GeneratedAppResponse:
+      type: object
+      required:
+        - generated_app_id
+        - title
+        - description
+        - url
+        - config
+        - status
+      properties:
+        generated_app_id:
+          type: string
+          format: uuid
+        miniapp_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+          example: Expense Tracker
+        description:
+          type: string
+          example: Miniapp for expenses
+        url:
+          type: string
+          example: /generated-apps/1f5e3b2f-2f5f-4f8c-9d36-2e9fd1f8a2f4
+        config:
+          $ref: "#/components/schemas/GeneratedAppConfig"
+        status:
+          type: string
+          example: active
+
+    GeneratedAppConfig:
+      type: object
+      required:
+        - title
+        - description
+        - pages
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        icon_prompt:
+          type: string
+        theme:
+          type: string
+        pages:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - title
+              - components
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              components:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
 
     AuditAction:
       type: string

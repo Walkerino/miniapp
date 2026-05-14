@@ -2,6 +2,7 @@ import { makeAutoObservable, runInAction } from 'mobx';
 
 import { getAccessToken } from 'api';
 import { BASE_URL } from 'api/config';
+import { adminApi } from 'entities/admin';
 import { miniappApi } from 'entities/miniapp';
 import type { Miniapp, MiniappCardData, MiniappCategory, MiniappListParams, UserRole } from 'entities/miniapp';
 import type { ILocalStore } from 'shared/lib/useLocalStore';
@@ -52,6 +53,7 @@ export class MiniAppListStore implements ILocalStore {
   private _status: StatusType | undefined;
   private _currentUserRole: UserRole | null = null;
   private _statusActionIds = new Set<string>();
+  private _creatorNames = new Map<string, string>();
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
@@ -131,19 +133,35 @@ export class MiniAppListStore implements ILocalStore {
       return;
     }
 
-    const ownedItems = [
+    const loadedItems = [
       ...response.data.items,
       ...pageResponses.flatMap((pageResponse) => pageResponse.data?.items ?? []),
-    ].filter((item) => item.created_by === currentUser.id);
+    ];
+    const visibleItems =
+      currentUser.role === 'admin'
+        ? loadedItems
+        : loadedItems.filter((item) => item.created_by === currentUser.id);
+    const usersResponse =
+      currentUser.role === 'admin' ? await adminApi.getUsers('', 1000) : null;
+    const creatorNames =
+      usersResponse && !usersResponse.isError && usersResponse.data
+        ? new Map(
+            usersResponse.data.items.map((user) => [
+              user.id,
+              user.name || user.email,
+            ])
+          )
+        : new Map<string, string>();
 
     runInAction(() => {
       this._isLoading = false;
       this._isLoadingMore = false;
       this._currentUserRole = currentUser.role;
-      this._items = isLoadingMore ? [...this._items, ...ownedItems] : ownedItems;
+      this._items = isLoadingMore ? [...this._items, ...visibleItems] : visibleItems;
+      this._creatorNames = creatorNames;
       this._page = 1;
-      this._limit = Math.max(ownedItems.length, 1);
-      this._total = ownedItems.length;
+      this._limit = Math.max(visibleItems.length, 1);
+      this._total = visibleItems.length;
     });
   }
 
@@ -165,7 +183,7 @@ export class MiniAppListStore implements ILocalStore {
       description,
       url,
       category,
-      status: 'pending',
+      status: this.isAdmin ? 'active' : 'pending',
     });
 
     if (response.isError || !response.data) {
@@ -180,9 +198,28 @@ export class MiniAppListStore implements ILocalStore {
     runInAction(() => {
       this._status = undefined;
       this._items = [createdMiniapp, ...this._items.filter((item) => item.id !== createdMiniapp.id)];
-      this._total += 1;
+      this._limit = Math.max(this._items.length, 1);
+      this._total = this._items.length;
     });
 
+    return true;
+  }
+
+  async generateMiniapp(prompt: string) {
+    runInAction(() => {
+      this._error = null;
+    });
+
+    const response = await miniappApi.generateMiniapp(prompt);
+
+    if (response.isError || !response.data) {
+      runInAction(() => {
+        this._error = response.errorMessage ?? 'Failed to generate miniapp';
+      });
+      return false;
+    }
+
+    await this.load({ status: undefined });
     return true;
   }
 
@@ -288,7 +325,8 @@ export class MiniAppListStore implements ILocalStore {
 
     runInAction(() => {
       this._items = this._items.filter((item) => !idSet.has(item.id));
-      this._total = Math.max(this._total - ids.length, 0);
+      this._limit = Math.max(this._items.length, 1);
+      this._total = this._items.length;
     });
   }
 
@@ -319,7 +357,7 @@ export class MiniAppListStore implements ILocalStore {
   }
 
   get items(): MiniappCardData[] {
-    return this._items.filter((item) => item.status !== 'deleted');
+    return this.isAdmin ? this._items : this._items.filter((item) => item.status !== 'deleted');
   }
 
   get isLoading() {
@@ -362,6 +400,10 @@ export class MiniAppListStore implements ILocalStore {
     return this._statusActionIds.has(id);
   }
 
+  getCreatorName(id: string) {
+    return this._creatorNames.get(id) ?? id;
+  }
+
   destroy() {
     this._items = [];
     this._isLoading = false;
@@ -373,5 +415,6 @@ export class MiniAppListStore implements ILocalStore {
     this._status = undefined;
     this._currentUserRole = null;
     this._statusActionIds.clear();
+    this._creatorNames.clear();
   }
 }

@@ -5,6 +5,8 @@ import type {
   AuthUser,
   CreateMiniappRequest,
   FavoriteResponse,
+  GeneratedMiniappResponse,
+  GenerateMiniappRequest,
   LaunchMiniappResponse,
   Miniapp,
   MiniappFormData,
@@ -129,6 +131,12 @@ async function createMiniapp(data: MiniappFormData): Promise<ApiAnswer<Miniapp>>
   return customPost<CreateMiniappRequest, Miniapp>(path, requestData);
 }
 
+async function generateMiniapp(prompt: string): Promise<ApiAnswer<GeneratedMiniappResponse>> {
+  return customPost<GenerateMiniappRequest, GeneratedMiniappResponse>('/api/ai/generate', {
+    prompt,
+  });
+}
+
 async function updateMiniapp(id: string, data: MiniappFormData): Promise<ApiAnswer<Miniapp>> {
   if (shouldUseMockMiniapps) {
     return mockMiniappApi.updateMiniapp(id, data);
@@ -226,6 +234,7 @@ export const miniappApi = {
   deleteMiniapp,
   disableMiniapp,
   enableMiniapp,
+  generateMiniapp,
   getCurrentUser,
   getMiniappById,
   getMiniapps,

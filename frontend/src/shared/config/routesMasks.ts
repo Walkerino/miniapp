@@ -28,4 +28,8 @@ export const routesMasks = {
     create: () => '/miniapps/new',
     edit: (miniappId: string) => `/miniapps/${miniappId}/edit`,
   },
+  generatedApps: {
+    viewMask: '/generated-apps/:generatedAppId',
+    view: (generatedAppId: string) => `/generated-apps/${generatedAppId}`,
+  },
 };

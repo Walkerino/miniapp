@@ -14,10 +14,10 @@ import (
 const defaultEnvPath = ".env"
 
 type Config struct {
-	Server  ServerConfig
-	Proxy   ProxyConfig
-	CORS    CORSConfig
-	Request RequestConfig
+	Server     ServerConfig
+	DB         DBConfig
+	LLM        LLMConfig
+	MiniappURL string
 }
 
 type ServerConfig struct {
@@ -25,23 +25,17 @@ type ServerConfig struct {
 	GracefulShutdownTimeout time.Duration
 }
 
-type ProxyConfig struct {
-	AuthServiceURL    string
-	MiniappServiceURL string
-	AIServiceURL      string
+type DBConfig struct {
+	URL string
 }
 
-type CORSConfig struct {
-	AllowedOrigins   []string
-	AllowedMethods   []string
-	AllowedHeaders   []string
-	ExposeHeaders    []string
-	AllowCredentials bool
-	MaxAge           int
-}
-
-type RequestConfig struct {
-	Timeout time.Duration
+type LLMConfig struct {
+	BaseURL     string
+	APIKey      string
+	Model       string
+	Timeout     time.Duration
+	MaxTokens   int
+	Temperature float64
 }
 
 func Load() (*Config, error) {
@@ -54,32 +48,28 @@ func Load() (*Config, error) {
 			Addr:                    getEnv("SERVER_ADDR", ":8080"),
 			GracefulShutdownTimeout: getDurationEnv("GRACEFUL_SHUTDOWN_TIMEOUT", 10*time.Second),
 		},
-		Proxy: ProxyConfig{
-			AuthServiceURL:    strings.TrimRight(getEnv("AUTH_SERVICE_URL", "http://localhost:8081"), "/"),
-			MiniappServiceURL: strings.TrimRight(getEnv("MINIAPP_SERVICE_URL", "http://localhost:8082"), "/"),
-			AIServiceURL:      strings.TrimRight(getEnv("AI_SERVICE_URL", "http://localhost:8083"), "/"),
+		DB: DBConfig{
+			URL: getEnv("AI_DB_URL", "postgres://postgres:postgres@localhost:5435/ai?sslmode=disable"),
 		},
-		CORS: CORSConfig{
-			AllowedOrigins:   splitCSV(getEnv("CORS_ALLOWED_ORIGINS", "*")),
-			AllowedMethods:   splitCSV(getEnv("CORS_ALLOWED_METHODS", "GET,POST,PATCH,DELETE,OPTIONS")),
-			AllowedHeaders:   splitCSV(getEnv("CORS_ALLOWED_HEADERS", "Authorization,Content-Type,X-Requested-With")),
-			ExposeHeaders:    splitCSV(getEnv("CORS_EXPOSE_HEADERS", "")),
-			AllowCredentials: getBoolEnv("CORS_ALLOW_CREDENTIALS", true),
-			MaxAge:           getIntEnv("CORS_MAX_AGE", 600),
+		LLM: LLMConfig{
+			BaseURL:     strings.TrimRight(getEnv("LLM_BASE_URL", "https://openrouter.ai/api/v1"), "/"),
+			APIKey:      getEnv("LLM_API_KEY", ""),
+			Model:       getEnv("LLM_MODEL", "openrouter/free"),
+			Timeout:     getDurationEnv("LLM_TIMEOUT", 30*time.Second),
+			MaxTokens:   getIntEnv("LLM_MAX_TOKENS", 1500),
+			Temperature: getFloatEnv("LLM_TEMPERATURE", 0.3),
 		},
-		Request: RequestConfig{
-			Timeout: getDurationEnv("REQUEST_TIMEOUT", 30*time.Second),
-		},
+		MiniappURL: strings.TrimRight(getEnv("MINIAPP_SERVICE_URL", "http://localhost:8082"), "/"),
 	}
 
-	if _, err := url.ParseRequestURI(cfg.Proxy.AuthServiceURL); err != nil {
-		return nil, fmt.Errorf("invalid AUTH_SERVICE_URL: %w", err)
+	if _, err := url.ParseRequestURI(cfg.LLM.BaseURL); err != nil {
+		return nil, fmt.Errorf("invalid LLM_BASE_URL: %w", err)
 	}
-	if _, err := url.ParseRequestURI(cfg.Proxy.MiniappServiceURL); err != nil {
+	if cfg.LLM.APIKey == "" {
+		return nil, errors.New("LLM_API_KEY is required")
+	}
+	if _, err := url.ParseRequestURI(cfg.MiniappURL); err != nil {
 		return nil, fmt.Errorf("invalid MINIAPP_SERVICE_URL: %w", err)
-	}
-	if _, err := url.ParseRequestURI(cfg.Proxy.AIServiceURL); err != nil {
-		return nil, fmt.Errorf("invalid AI_SERVICE_URL: %w", err)
 	}
 
 	return cfg, nil
@@ -159,12 +149,12 @@ func getIntEnv(key string, fallback int) int {
 	return parsed
 }
 
-func getBoolEnv(key string, fallback bool) bool {
+func getFloatEnv(key string, fallback float64) float64 {
 	value := os.Getenv(key)
 	if value == "" {
 		return fallback
 	}
-	parsed, err := strconv.ParseBool(value)
+	parsed, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return fallback
 	}
@@ -184,19 +174,4 @@ func getDurationEnv(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return time.Duration(seconds) * time.Second
-}
-
-func splitCSV(value string) []string {
-	if strings.TrimSpace(value) == "" {
-		return nil
-	}
-	parts := strings.Split(value, ",")
-	result := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			result = append(result, part)
-		}
-	}
-	return result
 }
