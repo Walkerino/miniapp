@@ -44,7 +44,7 @@ docker compose down
 
 ## API ключ для генерации
 
-Чтобы пользоваться генерацией мини-приложений локально, добавьте свой API ключ LLM-провайдера.
+Чтобы пользоваться генерацией мини-приложений локально, добавьте свой API ключ LLM-провайдера (OpenRouter).
 
 В `backend/deploy/docker-compose.yml` переменная уже проброшена в `ai-service`:
 
@@ -116,7 +116,5 @@ go run ./cmd
 OpenAPI-спецификации лежат в директориях сервисов:
 
 - `backend/services/api-service/docs/openapi.yaml`
-- `backend/services/auth-service/docs/openapi.yaml`
-- `backend/services/miniapp-service/docs/openapi.yaml`
 
 При запуске через Docker Compose Swagger UI доступен по адресу http://localhost:8085.
